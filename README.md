@@ -1,161 +1,198 @@
-# SpeakPro AI – AI Public Speaking Coach Web Application
+<div align="center">
 
-**SpeakPro AI** is an enterprise-grade AI-powered Public Speaking Coach web application built with **Python**, **Django 5**, **Google Gemini AI**, **ReportLab PDF generation**, and modern **Glassmorphic Dark Mode UI/UX** (with neon green `#00ff88` and electric blue `#00d2ff` aesthetics).
+<h1 align="center">SpeakPro AI</h1>
+
+**The Enterprise-Grade AI-Powered Public Speaking Coach**
+
+<sub>Master your public speaking skills with real-time audio visualization, 10-dimension AI evaluations, and gamified progress tracking.</sub>
+
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](requirements.txt) [![Django](https://img.shields.io/badge/django-5.0-092E20.svg)](requirements.txt) [![Gemini AI](https://img.shields.io/badge/AI-Google_Gemini-orange.svg)](requirements.txt) [![Local first](https://img.shields.io/badge/privacy-local--first-brightgreen.svg)]()
+
+[Features](#features) · [Architecture](#architecture) · [Workflows](#workflows) · [Quick Start](#quick-start)
+
+**Master the stage. AI-driven feedback for your speeches, presentations, and interviews.**
+
+</div>
 
 ---
+
+**SpeakPro AI** is a modern web application built with Python, Django 5, and Google Gemini AI. It acts as your personal speaking coach, analyzing your speech across 10 different metrics, highlighting grammatical errors, and providing executive actionable suggestions. With a stunning Glassmorphic Dark Mode UI/UX, practicing your speeches has never looked or felt better.
+
+<a id="architecture"></a>
+
+## 🏗️ Architecture & How It Works
+
+SpeakPro AI keeps all your data local (SQLite, local uploads, local PDFs) while optionally leveraging the power of Google Gemini AI for advanced speech evaluation. 
+
+```mermaid
+graph TD
+    User([User / Browser])
+    
+    subgraph Frontend "Glassmorphic Dark UI"
+        UI[Dashboard & HTML5 Canvas]
+        WebAudio[Web Audio API]
+        WebSpeech[Web Speech API]
+    end
+    
+    subgraph Backend "Django 5 Core"
+        Django[Django Routing & Views]
+        SpeechSvc[Speech Service]
+        AISvc[Gemini AI / NLP Fallback]
+        ReportSvc[ReportLab PDF Engine]
+        Analytics[Analytics & Gamification]
+    end
+    
+    subgraph Storage "Local File System"
+        DB[(SQLite Database)]
+        Uploads[Audio Uploads /uploads/]
+        PDFs[PDF Reports /reports/]
+    end
+
+    User <--> |Interact| UI
+    UI --> |Record| WebAudio
+    UI --> |Live Transcription| WebSpeech
+    
+    WebAudio --> |WAV/WEBM Upload| Django
+    WebSpeech --> |Text Transcript| Django
+    
+    Django --> SpeechSvc
+    SpeechSvc --> AISvc
+    AISvc --> |10-Dimension Analysis| ReportSvc
+    
+    SpeechSvc --> DB
+    AISvc --> DB
+    ReportSvc --> PDFs
+    ReportSvc --> DB
+    Analytics --> DB
+    
+    SpeechSvc --> Uploads
+```
+
+SpeakPro is highly modular:
+- **Speech Service**: Handles file uploads, metadata extraction, and session management.
+- **AI Service**: Connects to Google Gemini (or uses an offline NLP fallback) to evaluate the speech across 10 metrics.
+- **Report Service**: Uses ReportLab to generate dynamic, professional PDF summaries of your sessions.
+- **Analytics Service**: Drives Chart.js visualizations for your gamified dashboard.
+
+<a id="workflows"></a>
+
+## 🔄 Core Workflows
+
+### Speech Evaluation Loop
+
+An end-to-end evaluation flow ensures that your speech is captured, transcribed, and analyzed in real-time.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (JS)
+    participant B as Django Backend
+    participant AI as Gemini AI
+    
+    U->>F: Start Recording (3-2-1 Countdown)
+    activate F
+    F->>F: Capture Audio (Web Audio API)
+    F->>F: Live STT (Web Speech API)
+    U->>F: Stop Recording
+    F->>B: POST /api/speech/analyze/ (Audio & Text)
+    deactivate F
+    
+    activate B
+    B->>AI: Send Transcript & Request 10-Dimension Evaluation
+    activate AI
+    AI-->>B: Return Structured JSON Feedback (Scores, Grammar, Tips)
+    deactivate AI
+    
+    B->>B: Calculate Overall Score & Extract Filler Words
+    B->>B: Generate PDF Report (ReportLab)
+    B->>B: Save Session to SQLite
+    B-->>F: Return Evaluation Result ID
+    deactivate B
+    
+    F->>U: Redirect to Results Page & Dashboard
+```
+
+<a id="features"></a>
 
 ## 🌟 Key Features
 
-1. **Speech Practice Studio (`/practice/`)**
-   - **Real-Time Audio Waveform Visualizer**: Uses HTML5 Canvas and Web Audio API (`AnalyserNode`) to display a live, glowing audio waveform while speaking.
-   - **Countdown & Speech Timer**: Interactive 3-2-1 countdown before recording and digital speech elapsed timer.
-   - **Web Speech API Speech-to-Text**: Automatic real-time speech transcription into an editable text box.
-   - **Demo Speech Simulator**: Instant testing of AI analysis even without a microphone.
-   - **Topic Generator**: Fetches random speaking challenges across 5 categories (*General, Leadership, Technology, Social, Job Interview*).
+1. **Speech Practice Studio**
+   - **Real-Time Audio Waveform**: HTML5 Canvas and Web Audio API display a glowing, dynamic waveform as you speak.
+   - **Live Transcription**: Web Speech API provides real-time speech-to-text.
+   - **Topic Generator**: Randomly generated prompts across categories like Leadership, Technology, and Job Interviews.
 
-2. **10-Dimension AI Speech Evaluation Engine (`/result/<id>/`)**
-   - Evaluates speech recordings and transcripts across 10 key metrics:
-     1. Overall Speaking Score (`0-100`)
-     2. Grammar & Syntax Accuracy
-     3. Lexical Variety & Vocabulary
-     4. Vocal Confidence & Authority
-     5. Fluency & Rhythm
-     6. Overall Communication Impact
-     7. Filler Word Detection (`"um"`, `"uh"`, `"like"`, `"basically"`)
-     8. Pacing & WPM Analysis
-     9. Structure & Transition Analysis
-     10. Executive Actionable Suggestions
-   - **Highlighted Grammar Corrections**: Side-by-side table displaying the original phrase, recommended correction, and executive coaching explanation.
-   - **Circular Score Gauge**: Dynamic animated SVG score gauge and skill competency progress bars.
+2. **10-Dimension AI Evaluation Engine**
+   - Evaluates performance on metrics like Pacing, Fluency, Grammar, Lexical Variety, and Vocal Confidence.
+   - **Grammar Corrections**: Side-by-side tables display original phrases, recommended corrections, and coaching explanations.
 
-3. **ReportLab Professional PDF Report Generator (`/report/download/<id>/`)**
-   - Generates and stores professional multi-page PDF reports in `D:\AI_Public_Speaking_Coach\reports\`.
-   - Includes custom typography, executive summary tables, skill progress bars, and highlighted corrections.
+3. **Gamified Analytics Dashboard**
+   - Track your progress using **Chart.js** visuals (Radar Charts, Line Graphs, Pie Charts).
+   - Unlock badges (e.g., *7-Day Streak, Grammar Master*) and build consistency.
 
-4. **Interactive AI Public Speaking Coach (`/ai-coach/`)**
-   - Real-time conversational Q&A assistant powered by Google Gemini AI.
-   - Interactive quick prompt chips for instant advice on vocal variety, filler words, stage fright, and interview structure.
+4. **Interactive AI Public Speaking Coach**
+   - A real-time conversational Q&A assistant to help with stage fright, vocal variety, and speech structuring.
 
-5. **Gamified Speaker Dashboard & Analytics (`/dashboard/` & `/analytics/`)**
-   - **Practice Streak Tracking**: Calculates and rewards consecutive daily practice streaks.
-   - **Chart.js Visualizations**:
-     - **Radar Chart**: 5-core competency breakdown.
-     - **Line Chart**: Historical speaking score progression.
-     - **Bar Chart**: Performance comparison by topic category.
-     - **Pie Chart**: Practice topic distribution.
-   - **Achievement Badges**: Unlocks gamified badges (*First Speech, 7-Day Streak, Grammar Master, Fluent Orator, Executive Speaker*).
+<a id="quick-start"></a>
 
----
+## 🚀 Quick Start & Installation
 
-## 📁 Workspace & Project Directory Structure
+Requirements: Python 3.11+, Windows/macOS/Linux.
 
-All files, databases, media uploads, ReportLab PDFs, and virtual environments are contained exclusively inside **`D:\AI_Public_Speaking_Coach\`**:
+### 1. Activate Environment
+Ensure you are in the project root (`D:\AI_Public_Speaking_Coach\`) and activate the virtual environment:
+```bash
+# Windows
+venv\Scripts\activate
+
+# macOS/Linux
+source venv/bin/activate
+```
+
+### 2. Configure Environment (`.env`)
+Copy the example config and add your API keys:
+```ini
+GEMINI_API_KEY=your_google_gemini_api_key_here
+DJANGO_SECRET_KEY=your-secret-key
+DEBUG=True
+```
+> **Note:** If `GEMINI_API_KEY` is not provided, SpeakPro AI uses an intelligent offline NLP fallback so you can test immediately.
+
+### 3. Setup Database & Seed Data
+```bash
+python manage.py migrate
+python manage.py seed_data
+```
+*(Seeding creates an `admin` and `speaker` account, populates topics, and adds demo sessions).*
+
+### 4. Run the Server
+```bash
+python manage.py runserver
+```
+Visit **`http://127.0.0.1:8000/`** to start practicing!
+
+<a id="directory"></a>
+
+## 📁 Workspace Directory Structure
+
+All files, databases, media uploads, and ReportLab PDFs are contained inside the project folder:
 
 ```text
-D:\AI_Public_Speaking_Coach\
-├── app\                           # Core Django App (Models, Views, Forms, API, Services)
-│   ├── management\
-│   │   └── commands\
-│   │       └── seed_data.py       # Automated database seeding command
-│   ├── services\
-│   │   ├── gemini_service.py      # 10-dimension Google Gemini AI evaluator + NLP fallback
-│   │   ├── speech_service.py      # Audio upload & speech processing workflow
-│   │   ├── report_service.py      # ReportLab PDF generation engine
-│   │   ├── analytics_service.py   # Chart.js JSON dataset builder
-│   │   └── ai_coach_service.py    # Conversational AI coach chatbot engine
-│   ├── models.py                  # 9 schema models (UserProfile, Topic, SpeechSession, SpeechReport, etc.)
-│   ├── views.py                   # HTML template rendering controllers
-│   ├── api_views.py               # AJAX/JSON endpoints (/api/speech/analyze/, /api/coach/chat/, etc.)
-│   └── urls.py                    # App URL routing
-├── config\                        # Django Project Configuration
-│   ├── settings.py                # Override paths to D:\AI_Public_Speaking_Coach\
-│   └── urls.py                    # Root URL configuration
-├── database\                      # SQLite Database Directory
-│   └── db.sqlite3                 # Main database file
-├── uploads\                       # User recorded speech audio webm/wav files
-├── reports\                       # Generated ReportLab PDF evaluation reports
-├── templates\                     # Modern Glassmorphic Dark Mode HTML Templates
-│   ├── base.html
-│   ├── landing.html
-│   ├── dashboard.html
-│   ├── practice.html
-│   ├── result.html
-│   ├── history.html
-│   ├── analytics.html
-│   ├── profile.html
-│   ├── ai_coach.html
-│   ├── settings_page.html
-│   └── auth\
-│       ├── login.html
-│       ├── signup.html
-│       └── forgot_password.html
-├── static\                        # Frontend CSS, JavaScript & Assets
-│   ├── css\style.css              # Dark mode glassmorphism, glowing borders, neon accents
-│   └── js\
-│       ├── main.js                # Toasts, theme toggle, utilities
-│       ├── recorder.js            # Live audio waveform, countdown, Web Speech API STT
-│       ├── charts.js              # Chart.js Radar, Line, Bar, and Pie graphs
-│       └── ai_coach.js            # Real-time AI chat bubbles
-├── venv\                          # Isolated Python Virtual Environment
-├── manage.py
-└── requirements.txt               # Dependencies (django, reportlab, google-generativeai, etc.)
+AI_Public_Speaking_Coach/
+├── app/                           # Core Django App (Models, Views, Forms, API, Services)
+│   ├── management/commands/       # Automated database seeding command
+│   ├── services/                  # Business logic (Gemini AI, ReportLab, Analytics)
+│   ├── models.py                  # Database Schema
+│   └── views.py                   # HTML Controllers
+├── config/                        # Django Project Configuration
+├── database/                      # SQLite Database Directory (db.sqlite3)
+├── uploads/                       # User recorded speech audio webm/wav files
+├── reports/                       # Generated ReportLab PDF evaluation reports
+├── templates/                     # Modern Glassmorphic Dark Mode HTML Templates
+├── static/                        # Frontend CSS, JavaScript & Assets (Chart.js)
+└── requirements.txt               # Python Dependencies
 ```
 
----
+## 📄 Privacy & Data Storage
 
-## 🚀 Getting Started & Running Locally
-
-### 1. Activate the Python Virtual Environment
-Open PowerShell or Command Prompt:
-```powershell
-D:\AI_Public_Speaking_Coach\venv\Scripts\activate
-```
-
-### 2. Configure API Keys (`.env` file)
-All API keys and environment configuration are stored centrally in `.env` at the project root.
-- Open `.env` (or copy `.env.example` to `.env`) and add your **Google Gemini AI API Key**:
-  ```ini
-  GEMINI_API_KEY=your_google_gemini_api_key_here
-  DJANGO_SECRET_KEY=django-insecure-speakpro-ai-public-speaking-coach-2026-secret-key-!@#
-  DEBUG=True
-  ```
-> **Note:** If `GEMINI_API_KEY` is left blank, SpeakPro AI automatically switches to its intelligent offline NLP fallback engine so you can run and test the app without an API key!
-
-### 3. Apply Database Migrations & Seed Data
-```powershell
-python D:\AI_Public_Speaking_Coach\manage.py migrate
-python D:\AI_Public_Speaking_Coach\manage.py seed_data
-```
-The `seed_data` command creates:
-- **Admin Account**: `admin` / `admin12345` (`admin@speakpro.ai`)
-- **Demo Speaker Account**: `speaker` / `speakpro2026` (`speaker@speakpro.ai`)
-- **15+ Diverse Speaking Topics** across 5 categories
-- **Demo Speech Sessions & AI Reports** with ReportLab PDF reports
-- **Achievement Badges & Dashboard Analytics**
-
-### 4. Run the Development Server
-```powershell
-python D:\AI_Public_Speaking_Coach\manage.py runserver
-```
-Open your browser and navigate to: **`http://127.0.0.1:8000/`**
-
----
-
-## 🔑 Configuring Google Gemini AI Key (Optional)
-
-By default, **SpeakPro AI works out-of-the-box** using an intelligent NLP heuristic fallback engine if no API key is provided.
-
-To enable **live Google Gemini 3.1 Pro (High)** evaluations:
-1. Set your `GEMINI_API_KEY` environment variable in your system or terminal:
-   ```powershell
-   $env:GEMINI_API_KEY="your-google-gemini-api-key"
-   ```
-2. Or configure it inside `D:\AI_Public_Speaking_Coach\config\settings.py`.
-
----
-
-## 📄 License & Storage Verification
-
-- Stored exclusively on `D:\AI_Public_Speaking_Coach\`.
-- All user audio recordings reside in `D:\AI_Public_Speaking_Coach\uploads\`.
-- All downloadable ReportLab PDF reports reside in `D:\AI_Public_Speaking_Coach\reports\`.
+- **Local First**: Audio recordings (`/uploads/`) and PDF reports (`/reports/`) are stored completely locally on your file system.
+- **Transcripts**: Evaluated securely using Google Gemini API (if configured) without retaining data permanently on external servers.
