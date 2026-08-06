@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sign Up — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-5 my-4">
+  <div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+      <div class="glass-card p-4 p-md-5 shadow-lg">
+        <div class="text-center mb-4">
+          <span class="d-inline-flex align-items-center justify-content-center bg-dark rounded-circle p-3 border border-success mb-3">
+            <i class="bi bi-person-plus-fill text-neon-green fs-3"></i>
+          </span>
+          <h2 class="fw-bold mb-1">Create Your Account</h2>
+          <p class="text-secondary small">Start practicing speeches and receive instant AI feedback.</p>
+        </div>
+
+        <form method="POST" action="{% url 'signup' %}">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger small py-2">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label small text-secondary fw-semibold">{{ field.label|upper }}</label>
+            {{ field }}
+            {% if field.help_text %}
+              <small class="form-text text-secondary d-block mt-1">{{ field.help_text }}</small>
+            {% endif %}
+            {% if field.errors %}
+              <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+
+          <button type="submit" class="btn btn-neon-green w-100 py-3 fw-bold mt-2">
+            <i class="bi bi-rocket-takeoff-fill me-2"></i> Register Account
+          </button>
+        </form>
+
+        <div class="text-center mt-4 pt-3 border-top border-secondary">
+          <span class="text-secondary small">Already have an account?</span>
+          <a href="{% url 'login' %}" class="text-neon-blue fw-semibold text-decoration-none ms-1">Log In</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

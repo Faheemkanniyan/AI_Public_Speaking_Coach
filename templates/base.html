@@ -1,0 +1,205 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ APP_NAME }} — Safe Space to Master Public Speaking{% endblock %}</title>
+  
+  <!-- SEO & Meta -->
+  <meta name="description" content="SpeakPro AI is a judgment-free Safe Space to master public speaking, overcome stage fright, and refine your vocal presence with private AI coaching and filler word detection.">
+
+  <!-- Google Fonts: Inter & Playfair Display -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5.3 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+  
+  <!-- Custom SpeakPro AI CSS (Safe Space Framer Design System) -->
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+  <!-- Safe Space Minimalist Navbar -->
+  <header>
+    <nav class="navbar navbar-expand-lg sticky-top py-3">
+      <div class="container">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'landing' %}">
+          <span class="d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 38px; height: 38px; background-color: #EBF1ED; color: #2E4637;">
+            <i class="bi bi-mic-fill fs-6"></i>
+          </span>
+          <span class="fs-4 font-serif fw-bold" style="color: #1C1B18;">{{ APP_NAME }}</span>
+          <span class="badge badge-safe px-2 py-1 ms-1" style="font-size: 0.65rem;">SAFE SPACE</span>
+        </a>
+
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarMain">
+          <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-1">
+            {% if user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link px-3 rounded-pill {% if request.resolver_match.url_name == 'dashboard' %}active fw-bold{% endif %}" href="{% url 'dashboard' %}">
+                Dashboard
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link px-3 rounded-pill {% if request.resolver_match.url_name == 'practice' %}active fw-bold{% endif %}" href="{% url 'practice' %}">
+                Practice Studio
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link px-3 rounded-pill {% if request.resolver_match.url_name == 'ai_coach' %}active fw-bold{% endif %}" href="{% url 'ai_coach' %}">
+                AI Coach
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link px-3 rounded-pill {% if request.resolver_match.url_name == 'history' %}active fw-bold{% endif %}" href="{% url 'history' %}">
+                History
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link px-3 rounded-pill {% if request.resolver_match.url_name == 'analytics' %}active fw-bold{% endif %}" href="{% url 'analytics' %}">
+                Analytics
+              </a>
+            </li>
+            {% else %}
+            <li class="nav-item">
+              <a class="nav-link px-3" href="{% url 'landing' %}#approach">Approach</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link px-3" href="{% url 'landing' %}#how-it-works">How It Works</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link px-3" href="{% url 'landing' %}#reassurance">Judgment-Free AI</a>
+            </li>
+            {% endif %}
+          </ul>
+
+          <div class="d-flex align-items-center gap-3">
+            {% if user.is_authenticated %}
+            <div class="dropdown">
+              <a class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle" style="color: #1C1B18;" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; background-color: #EBF1ED; color: #2E4637;">
+                  {% if user.profile.profile_photo %}
+                  <img src="{{ user.profile.profile_photo.url }}" alt="{{ user.username }}" class="rounded-circle w-100 h-100 object-fit-cover">
+                  {% else %}
+                  {{ user.username|slice:":1"|upper }}
+                  {% endif %}
+                </div>
+                <span class="d-none d-sm-inline fw-semibold">{{ user.username }}</span>
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end border shadow-sm rounded-3">
+                <li><a class="dropdown-item py-2" href="{% url 'profile' %}"><i class="bi bi-person-fill me-2"></i> Profile & Badges</a></li>
+                <li><a class="dropdown-item py-2" href="{% url 'settings_page' %}"><i class="bi bi-gear-fill me-2"></i> Settings</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item py-2 text-danger" href="{% url 'logout' %}"><i class="bi bi-box-arrow-right me-2"></i> Log Out</a></li>
+              </ul>
+            </div>
+            <a href="{% url 'practice' %}" class="btn btn-safe-space rounded-pill px-4">Let's talk <i class="bi bi-arrow-up-right"></i></a>
+            {% else %}
+            <a href="{% url 'login' %}" class="btn btn-outline-safe rounded-pill px-4">Log In</a>
+            <a href="{% url 'practice' %}" class="btn btn-safe-space rounded-pill px-4">Let's talk <i class="bi bi-arrow-up-right"></i></a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Flash Messages & Toast Alert Container -->
+  <div class="container mt-3">
+    {% if messages %}
+      {% for message in messages %}
+      <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show border-0 shadow-sm rounded-4" role="alert">
+        <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;"></div>
+
+  <!-- Main Body Content -->
+  <main class="flex-grow-1">
+    {% if request.resolver_match.url_name != 'landing' %}
+    <div class="container pt-3 pb-0">
+      <button onclick="window.history.length > 1 ? window.history.back() : window.location.href='{% url 'dashboard' %}'" 
+              class="back-btn-glass mb-3" 
+              title="Go back to previous page">
+        <i class="bi bi-arrow-left"></i> <span>Back</span>
+      </button>
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Safe Space Minimalist Footer -->
+  <footer class="border-top py-5 mt-auto" style="background-color: #FBF9F5; border-color: #EAE5DE !important;">
+    <div class="container">
+      <div class="row g-4 justify-content-between">
+        <div class="col-lg-4 col-md-6">
+          <a class="d-flex align-items-center gap-2 text-decoration-none fw-bold mb-3" href="{% url 'landing' %}" style="color: #1C1B18;">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 36px; height: 36px; background-color: #EBF1ED; color: #2E4637;">
+              <i class="bi bi-mic-fill"></i>
+            </span>
+            <span class="fs-5 font-serif">{{ APP_NAME }}</span>
+          </a>
+          <p class="small mb-3" style="color: #6A665E;">
+            A compassionate, judgment-free space to practice public speaking, overcome presentation anxiety, and build confident executive presence.
+          </p>
+          <div class="d-flex gap-2">
+            <a href="{% url 'practice' %}" class="btn btn-sm btn-outline-safe rounded-pill px-3">Let's talk ↗</a>
+          </div>
+        </div>
+
+        <div class="col-lg-2 col-md-6">
+          <h6 class="fw-bold mb-3" style="color: #1C1B18;">Core Practice</h6>
+          <ul class="list-unstyled small d-flex flex-column gap-2" style="color: #6A665E;">
+            <li><a href="{% url 'practice' %}" class="text-decoration-none" style="color: #6A665E;">Practice Studio</a></li>
+            <li><a href="{% url 'ai_coach' %}" class="text-decoration-none" style="color: #6A665E;">AI Speech Coach</a></li>
+            <li><a href="{% url 'analytics' %}" class="text-decoration-none" style="color: #6A665E;">Progress Analytics</a></li>
+            <li><a href="{% url 'history' %}" class="text-decoration-none" style="color: #6A665E;">Practice History</a></li>
+          </ul>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <h6 class="fw-bold mb-3" style="color: #1C1B18;">Judgment-Free AI Coaching</h6>
+          <p class="small mb-2" style="color: #6A665E;">
+            Powered by AssemblyAI speech-to-text filler word detection and Google Gemini AI grammar & structure evaluation.
+          </p>
+          <span class="badge badge-safe px-3 py-2 rounded-pill">
+            <i class="bi bi-shield-check me-1"></i> 100% Private & judgment-free
+          </span>
+        </div>
+      </div>
+
+      <hr class="my-4" style="border-color: #EAE5DE;">
+
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-center small" style="color: #8E8A80;">
+        <div>
+          &copy; 2026 {{ APP_NAME }} — Safe Space to Master Public Speaking.
+        </div>
+        <div>
+          Template adapted from <span style="color: #2E4637; font-weight: 600;">Safe Space by Shivangi Agarwal</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- JS Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="{% static 'js/main.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

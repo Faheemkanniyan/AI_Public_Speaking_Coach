@@ -1,0 +1,1 @@
+# SpeakPro AI Django App

@@ -1,0 +1,457 @@
+/* 
+ * SpeakPro AI – "Safe Space" Framer Minimalist Design System
+ * Inspired by Shivangi Agarwal's Safe Space Framer Template
+ * Warm neutral background, clean white elevated cards, editorial serif typography,
+ * deep organic sage green accents, and supportive empathetic UI.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&display=swap');
+
+:root {
+  --bg-main: #FBF9F5;          /* Calming warm ivory / cream background */
+  --bg-card: #FFFFFF;          /* Crisp clean white cards */
+  --bg-subtle: #F4EFEA;        /* Soft muted neutral for hover and badges */
+  --border-card: #EAE5DE;      /* Gentle warm border */
+  --border-focus: #2E4637;     /* Deep sage green */
+  --text-primary: #1C1B18;     /* Deep charcoal text */
+  --text-secondary: #6B6860;   /* Warm muted gray */
+  --text-muted: #8E8A80;       /* Lighter muted gray */
+  --primary-sage: #2E4637;     /* Safe Space organic sage green CTA color */
+  --primary-sage-hover: #23372B;
+  --accent-terracotta: #C86D51;/* Supportive warm terracotta accent */
+  --shadow-sm: 0 4px 12px rgba(28, 27, 24, 0.03);
+  --shadow-md: 0 12px 32px rgba(28, 27, 24, 0.06);
+  --shadow-lg: 0 24px 48px rgba(28, 27, 24, 0.09);
+  --radius-sm: 12px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+  --radius-pill: 9999px;
+  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-main) !important;
+  color: var(--text-primary) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  position: relative;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography Classes */
+.font-serif, h1, h2, .safe-space-title {
+  font-family: 'Playfair Display', Georgia, serif !important;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h3, h4, h5, h6 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: #D8D2C9;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C2BBB0;
+}
+
+/* --- SAFE SPACE NAVBAR --- */
+.navbar {
+  background-color: rgba(251, 249, 245, 0.9) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-card);
+  padding: 1rem 0;
+  transition: var(--transition);
+}
+
+.navbar-brand {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 1.35rem;
+  color: var(--text-primary) !important;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  color: var(--text-secondary) !important;
+  font-weight: 500;
+  font-size: 0.95rem;
+  padding: 0.5rem 1rem !important;
+  transition: var(--transition);
+}
+.nav-link:hover, .nav-link.active {
+  color: var(--text-primary) !important;
+}
+
+/* --- GLASS CARD / SAFE SPACE WHITE CARD --- */
+.glass-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-card) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-md) !important;
+  color: var(--text-primary) !important;
+  transition: var(--transition);
+}
+.glass-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg) !important;
+  border-color: #DFDAD2 !important;
+}
+
+/* --- BUTTONS (Safe Space Organic Sage & Pill Theme) --- */
+.btn-neon-green, .btn-primary, .btn-safe-space, .btn-lets-talk {
+  background-color: var(--primary-sage) !important;
+  color: #FFFFFF !important;
+  border: 1px solid var(--primary-sage) !important;
+  border-radius: var(--radius-pill) !important;
+  padding: 0.75rem 1.85rem !important;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.2px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+.btn-neon-green:hover, .btn-primary:hover, .btn-safe-space:hover, .btn-lets-talk:hover {
+  background-color: var(--primary-sage-hover) !important;
+  border-color: var(--primary-sage-hover) !important;
+  color: #FFFFFF !important;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-outline-light, .btn-outline-safe {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-card) !important;
+  border-radius: var(--radius-pill) !important;
+  padding: 0.75rem 1.75rem;
+  font-weight: 600;
+  transition: var(--transition);
+  text-decoration: none;
+}
+.btn-outline-light:hover, .btn-outline-safe:hover {
+  background-color: var(--bg-subtle) !important;
+  color: var(--text-primary) !important;
+  border-color: #D3CDC4 !important;
+  transform: translateY(-2px);
+}
+
+/* Universal Glass Back Button */
+.back-btn-glass {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
+  color: var(--text-primary);
+  padding: 0.55rem 1.25rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.88rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  text-decoration: none;
+}
+.back-btn-glass:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+  border-color: #D8D2C9;
+  transform: translateX(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+/* --- OVERRIDE DARK & NEON UTILITY CLASSES FOR SAFE SPACE MAPPING --- */
+.text-neon-green, .text-success {
+  color: var(--primary-sage) !important;
+  font-weight: 600;
+}
+.text-neon-blue, .text-info {
+  color: var(--accent-terracotta) !important;
+  font-weight: 600;
+}
+.text-warning {
+  color: #D97706 !important;
+}
+.text-danger {
+  color: #DC2626 !important;
+}
+.text-light {
+  color: var(--text-primary) !important;
+}
+.text-secondary, .text-muted {
+  color: var(--text-secondary) !important;
+}
+
+/* Tables in Safe Space Light Theme */
+.table-dark {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-card) !important;
+}
+.table-dark th {
+  background-color: var(--bg-subtle) !important;
+  color: var(--text-secondary) !important;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-card) !important;
+}
+.table-dark td {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-card) !important;
+}
+.table-hover tbody tr:hover td {
+  background-color: var(--bg-subtle) !important;
+}
+
+/* Background overrides */
+.bg-dark {
+  background-color: var(--bg-subtle) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-card) !important;
+}
+
+/* Progress Bars */
+.progress {
+  background-color: var(--bg-subtle) !important;
+  border-radius: var(--radius-pill);
+  height: 8px;
+  overflow: hidden;
+}
+.progress-bar-neon, .progress-bar {
+  background-color: var(--primary-sage) !important;
+  border-radius: var(--radius-pill);
+}
+
+/* Form inputs */
+.form-control, .form-select {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-card) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  transition: var(--transition);
+}
+.form-control:focus, .form-select:focus {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 3px rgba(46, 70, 55, 0.1) !important;
+  color: var(--text-primary) !important;
+}
+.form-control::placeholder {
+  color: var(--text-muted);
+}
+
+/* Badges & Safe Space Tags */
+.badge {
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  padding: 0.4em 0.85em;
+}
+.badge-safe {
+  background-color: #EBF1ED;
+  color: var(--primary-sage);
+  border: 1px solid #D2DFD6;
+}
+
+/* --- HERO SECTION SPECIALLY TAILORED FOR SAFE SPACE --- */
+.safe-space-hero {
+  padding: 5rem 0 4rem 0;
+  text-align: center;
+  position: relative;
+}
+.safe-space-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
+  padding: 0.4rem 1.1rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+.safe-space-badge i {
+  color: var(--primary-sage);
+}
+
+.safe-space-hero h1 {
+  font-size: clamp(2.5rem, 5.5vw, 4.25rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  max-width: 820px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.safe-space-hero p.lead {
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  color: var(--text-secondary);
+  max-width: 680px;
+  margin: 0 auto 2.5rem auto;
+  line-height: 1.7;
+}
+
+/* Interactive Collage / Badge Grid (like Safe Space Framer template) */
+.safe-space-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.75rem;
+  margin-top: 3rem;
+}
+
+.safe-space-feature-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 2.25rem;
+  text-align: left;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+.safe-space-feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: #DFDAD2;
+}
+.safe-space-feature-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background-color: #EBF1ED;
+  color: var(--primary-sage);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Reassuring Quote Box */
+.safe-space-quote {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2.5rem;
+  margin: 4rem auto;
+  max-width: 850px;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+.safe-space-quote p {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  font-style: italic;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+/* Toast container */
+.toast-container {
+  z-index: 1080;
+}
+
+/* AI Coach Interactive Chat Box & Bubbles (Safe Space Layout - No Overflow) */
+.ai-chat-box {
+  flex: 1 1 auto;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: calc(680px - 100px);
+  min-height: 380px;
+  padding-right: 0.75rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  scroll-behavior: smooth;
+  border: 1px solid #EAE5DE;
+  background-color: #FAF8F5;
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+/* Custom Scrollbar for Chat Box */
+.ai-chat-box::-webkit-scrollbar {
+  width: 6px;
+}
+.ai-chat-box::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+}
+.ai-chat-box::-webkit-scrollbar-thumb {
+  background: rgba(46, 70, 55, 0.25);
+  border-radius: 10px;
+}
+
+/* Chat Bubbles */
+.chat-bubble-user {
+  align-self: flex-end;
+  background: var(--primary-sage);
+  color: #FFFFFF !important;
+  border-radius: 18px 18px 4px 18px;
+  padding: 1rem 1.25rem;
+  max-width: 82%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  box-shadow: 0 4px 12px rgba(46, 70, 55, 0.15);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.chat-bubble-ai {
+  align-self: flex-start;
+  background: #FFFFFF;
+  color: var(--text-primary);
+  border: 1px solid var(--border-card);
+  border-radius: 18px 18px 18px 4px;
+  padding: 1.25rem 1.5rem;
+  max-width: 90%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  box-shadow: 0 6px 18px rgba(28, 27, 24, 0.06);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.chat-bubble-ai .markdown-content {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.chat-bubble-ai p:last-child {
+  margin-bottom: 0;
+}

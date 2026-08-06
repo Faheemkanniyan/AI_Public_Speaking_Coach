@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Account Settings — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-secondary">
+    <div>
+      <h1 class="fw-bold mb-1"><i class="bi bi-gear-fill text-warning me-2"></i>Account Settings</h1>
+      <p class="text-secondary small mb-0">Manage your speech preferences, daily practice goals, and theme appearance.</p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column: Preference Settings Form -->
+    <div class="col-lg-7">
+      <div class="glass-card p-4 mb-4">
+        <h5 class="fw-bold mb-4">Practice & Theme Preferences</h5>
+
+        <form method="POST" action="{% url 'settings_page' %}">
+          {% csrf_token %}
+
+          <div class="mb-4">
+            <label class="form-label small text-secondary fw-semibold">DEFAULT PRACTICE CATEGORY</label>
+            {{ form.default_category }}
+            <small class="form-text text-secondary d-block mt-1">Default speaking topic category in your practice studio.</small>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label small text-secondary fw-semibold">DAILY PRACTICE GOAL</label>
+            {{ form.daily_goal_minutes }}
+            <small class="form-text text-secondary d-block mt-1">Target practice minutes per day to build your streak.</small>
+          </div>
+
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              {{ form.dark_mode_enabled }}
+              <label class="form-check-label text-light fw-semibold ms-2" for="{{ form.dark_mode_enabled.id_for_label }}">
+                Enable Premium Dark Mode (Neon Glassmorphism)
+              </label>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              {{ form.email_notifications }}
+              <label class="form-check-label text-light fw-semibold ms-2" for="{{ form.email_notifications.id_for_label }}">
+                Receive Practice Reminders & Weekly Summary Reports
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-neon-green rounded-pill px-5 py-2 fw-bold">
+            <i class="bi bi-check-lg me-2"></i> Save Settings
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right Column: Microphone Tester & Data Management -->
+    <div class="col-lg-5">
+      <!-- Microphone Test Box -->
+      <div class="glass-card p-4 mb-4 border-info">
+        <h5 class="fw-bold mb-2"><i class="bi bi-mic text-neon-blue me-2"></i>Microphone Check</h5>
+        <p class="text-secondary small mb-3">
+          Test your browser audio permissions before recording an official speech.
+        </p>
+
+        <button id="btnTestMic" type="button" class="btn btn-outline-info rounded-pill w-100 mb-3">
+          <i class="bi bi-soundwave me-1"></i> Test Microphone Input
+        </button>
+
+        <div id="micTestResult" class="small text-secondary text-center">
+          Click above to verify microphone permissions.
+        </div>
+      </div>
+
+      <!-- Account Security -->
+      <div class="glass-card p-4 border-danger-subtle">
+        <h5 class="fw-bold text-danger mb-2"><i class="bi bi-shield-exclamation me-2"></i>Data & Account</h5>
+        <p class="text-secondary small mb-3">
+          All your speech recordings and ReportLab PDF reports are stored securely in <code>D:\AI_Public_Speaking_Coach\</code>.
+        </p>
+
+        <div class="d-flex flex-column gap-2">
+          <a href="{% url 'logout' %}" class="btn btn-outline-light rounded-pill w-100">
+            <i class="bi bi-box-arrow-right me-2"></i> Log Out
+          </a>
+          <button type="button" class="btn btn-outline-danger rounded-pill w-100" onclick="alert('To delete account or clear database, use django admin or contact system administrator.');">
+            <i class="bi bi-trash3-fill me-2"></i> Reset Practice Data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const btnTestMic = document.getElementById("btnTestMic");
+  const micResult = document.getElementById("micTestResult");
+
+  if (btnTestMic) {
+    btnTestMic.addEventListener("click", async function() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micResult.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Microphone working properly!</span>`;
+        stream.getTracks().forEach(t => t.stop());
+      } catch(e) {
+        micResult.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-1"></i> Microphone access denied or not detected.</span>`;
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

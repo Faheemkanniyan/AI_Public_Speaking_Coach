@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ APP_NAME }} — Safe Space to Master Public Speaking{% endblock %}
+
+{% block content %}
+<!-- 1. Safe Space Editorial Hero Section -->
+<section class="safe-space-hero position-relative py-5" style="background-color: #F8F6F0;">
+  <div class="container text-center pt-5 pb-3">
+    
+    <h1 class="font-serif mb-5 animate__animated animate__fadeInUp" style="color: #1C1B18; font-size: clamp(2.5rem, 5vw, 4.5rem); line-height: 1.15; max-width: 960px; margin: 0 auto; font-weight: 400; letter-spacing: -1px;">
+      Everyone speaks. Not everyone connects.
+    </h1>
+
+    <!-- Framer-inspired Image Parallax Scene -->
+    <div class="position-relative mx-auto mb-5" style="width: 100%; max-width: 912px; height: 440px; cursor: none; transform-style: preserve-3d;" id="framerStageBox">
+      <img src="https://framerusercontent.com/images/acKi7RGI4EK7cfKZwSY6GXX3bks.png?width=1536&amp;height=1024" alt="Base Scene" id="baseSceneImg" class="position-absolute top-0 start-0 w-100 h-100" style="object-fit: contain; opacity: 1; transition: opacity 0.4s; z-index: 1;">
+      
+      <!-- Overlays (Fade in on hover or when speaking well) -->
+      <img src="https://framerusercontent.com/images/zBKxg2wGfkbhKS83RGIhCPzPiU.png?width=716&amp;height=965" alt="John Overlay" id="overlayJohn" class="position-absolute w-100 h-100" style="left: -5px; top: 2px; object-fit: contain; transform: scale(0.5); transform-origin: center center; opacity: 0; transition: opacity 0.4s, filter 0.4s; pointer-events: none; z-index: 5;">
+      <img src="https://framerusercontent.com/images/uhVdqbMxjJonOiPSaiy7PuLnZQ.png?width=561&amp;height=870" alt="Devi Overlay" id="overlayDevi" class="position-absolute w-100 h-100" style="left: 50px; top: -17px; object-fit: contain; transform: scale(0.57); transform-origin: center center; opacity: 0; transition: opacity 0.4s, filter 0.4s; pointer-events: none; z-index: 5;">
+      <img src="https://framerusercontent.com/images/sSmCHTa सीएचसीCvIxwXKRLdaxCZgXKOLQ.png?width=425&amp;height=875" alt="Mike Overlay" id="overlayMike" class="position-absolute w-100 h-100" style="left: 135px; top: -3px; object-fit: contain; transform: scale(0.61); transform-origin: center center; opacity: 0; transition: opacity 0.4s, filter 0.4s; pointer-events: none; z-index: 5;">
+      
+      <!-- Interactive Hover/Click Zones -->
+      <div class="stage-zone" data-target="John" style="position: absolute; left: 35%; top: 18%; width: 18%; height: 55%; z-index: 10; cursor: none;"></div>
+      <div class="stage-zone" data-target="Devi" style="position: absolute; left: 50%; top: 20%; width: 18%; height: 55%; z-index: 10; cursor: none;"></div>
+      <div class="stage-zone" data-target="Mike" style="position: absolute; left: 68%; top: 18%; width: 18%; height: 55%; z-index: 10; cursor: none;"></div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-3 justify-content-center animate__animated animate__fadeInUp">
+      <a href="{% url 'practice' %}" class="btn btn-safe-space rounded-pill px-5 py-3 fs-6" style="background-color: #1C1B18; color: #fff; border: none;">
+        <span>Let's talk</span> <i class="bi bi-arrow-up-right"></i>
+      </a>
+    </div>
+  </div>
+
+    <!-- Interactive Safe Space Cards Grid (Collage style) -->
+    <div class="safe-space-grid text-start">
+      <div class="safe-space-feature-card">
+        <div class="safe-space-feature-icon">
+          <i class="bi bi-shield-lock-fill"></i>
+        </div>
+        <h4 class="font-serif fw-bold mb-2" style="font-size: 1.3rem;">100% Private &amp; Judgment-Free</h4>
+        <p class="small mb-0" style="color: #6A665E; line-height: 1.6;">
+          Practice speeches in a calm, secure environment where no audience is watching. Make mistakes, learn, and grow at your own rhythm.
+        </p>
+      </div>
+
+      <div class="safe-space-feature-card">
+        <div class="safe-space-feature-icon">
+          <i class="bi bi-soundwave"></i>
+        </div>
+        <h4 class="font-serif fw-bold mb-2" style="font-size: 1.3rem;">Acoustic Filler Detection</h4>
+        <p class="small mb-0" style="color: #6A665E; line-height: 1.6;">
+          Powered by AssemblyAI. Gently identify 'um', 'uh', 'like', and hesitation patterns with instant highlighted transcript feedback.
+        </p>
+      </div>
+
+      <div class="safe-space-feature-card">
+        <div class="safe-space-feature-icon">
+          <i class="bi bi-heart-pulse-fill"></i>
+        </div>
+        <h4 class="font-serif fw-bold mb-2" style="font-size: 1.3rem;">Empathetic Executive Coach</h4>
+        <p class="small mb-0" style="color: #6A665E; line-height: 1.6;">
+          Receive encouraging, constructive AI evaluations that celebrate your unique strengths and guide your vocal clarity.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. Our Approach Section (Why Practice in a Safe Space) -->
+<section id="approach" class="py-5 my-4">
+  <div class="container py-4">
+    <div class="text-center mb-5">
+      <span class="badge badge-safe px-3 py-1 mb-2">OUR PHILOSOPHY</span>
+      <h2 class="font-serif fw-bold display-6 mb-3" style="color: #1C1B18;">
+        Why practice in a Safe Space?
+      </h2>
+      <p class="small mx-auto" style="color: #6A665E; max-width: 620px; font-size: 1.05rem;">
+        Public speaking anxiety is natural. Our approach replaces pressure and stage fright with supportive, real-time AI guidance.
+      </p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-md-6 col-lg-3">
+        <div class="glass-card h-100 p-4 border-0">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 48px; height: 48px; background-color: #EBF1ED; color: #2E4637;">
+            <i class="bi bi-clock-history fs-5"></i>
+          </div>
+          <h5 class="fw-bold mb-2" style="color: #1C1B18;">Speak at Your Pace</h5>
+          <p class="small mb-0" style="color: #6A665E;">
+            No countdown clocks or live audience anxiety. Rehearse interviews, toasts, or keynotes whenever you feel ready.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="glass-card h-100 p-4 border-0">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 48px; height: 48px; background-color: #EBF1ED; color: #2E4637;">
+            <i class="bi bi-chat-left-quote fs-5"></i>
+          </div>
+          <h5 class="fw-bold mb-2" style="color: #1C1B18;">Disfluency Highlighting</h5>
+          <p class="small mb-0" style="color: #6A665E;">
+            We don't just score you; we show you the exact words where you stumbled so you can refine your speech flow.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="glass-card h-100 p-4 border-0">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 48px; height: 48px; background-color: #EBF1ED; color: #2E4637;">
+            <i class="bi bi-magic fs-5"></i>
+          </div>
+          <h5 class="fw-bold mb-2" style="color: #1C1B18;">Lexical &amp; Grammar Polish</h5>
+          <p class="small mb-0" style="color: #6A665E;">
+            Advanced language models help you swap repetitive words for high-impact, professional executive vocabulary.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="glass-card h-100 p-4 border-0">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 48px; height: 48px; background-color: #EBF1ED; color: #2E4637;">
+            <i class="bi bi-graph-up-arrow fs-5"></i>
+          </div>
+          <h5 class="fw-bold mb-2" style="color: #1C1B18;">Gentle Growth Tracking</h5>
+          <p class="small mb-0" style="color: #6A665E;">
+            Watch your filler percentage drop and your confidence score steadily climb over time with private analytics.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Editorial Safe Space Reassurance Quote -->
+<section id="reassurance" class="py-4">
+  <div class="container">
+    <div class="safe-space-quote">
+      <p class="mb-3">
+        "The most powerful voices are built in quiet, supportive spaces where you have the freedom to practice without fear of judgment."
+      </p>
+      <div class="small fw-semibold" style="color: #2E4637; letter-spacing: 1px; text-transform: uppercase;">
+        — SpeakPro AI Safe Space Philosophy
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. How It Works Section -->
+<section id="how-it-works" class="py-5 my-4">
+  <div class="container py-4">
+    <div class="text-center mb-5">
+      <span class="badge badge-safe px-3 py-1 mb-2">SIMPLE 3-STEP JOURNEY</span>
+      <h2 class="font-serif fw-bold display-6 mb-3" style="color: #1C1B18;">
+        How your Safe Space works
+      </h2>
+      <p class="small mx-auto" style="color: #6A665E; max-width: 580px;">
+        Designed to feel effortless, intuitive, and reassuring from your very first practice speech.
+      </p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="glass-card p-5 h-100 border-0 position-relative">
+          <span class="font-serif fw-bold text-muted opacity-25" style="font-size: 3rem; position: absolute; top: 1rem; right: 1.5rem;">01</span>
+          <div class="badge badge-safe mb-3">STEP 01</div>
+          <h4 class="font-serif fw-bold mb-3" style="color: #1C1B18;">Choose Your Topic</h4>
+          <p class="small mb-0" style="color: #6A665E;">
+            Select from executive leadership, TED-style keynote, or interview practice—or speak freely about whatever is on your mind.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="glass-card p-5 h-100 border-0 position-relative">
+          <span class="font-serif fw-bold text-muted opacity-25" style="font-size: 3rem; position: absolute; top: 1rem; right: 1.5rem;">02</span>
+          <div class="badge badge-safe mb-3">STEP 02</div>
+          <h4 class="font-serif fw-bold mb-3" style="color: #1C1B18;">Speak Freely</h4>
+          <p class="small mb-0" style="color: #6A665E;">
+            Record your voice in your browser or upload an audio file. Speak naturally—our acoustic AI listens with empathy and care.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="glass-card p-5 h-100 border-0 position-relative">
+          <span class="font-serif fw-bold text-muted opacity-25" style="font-size: 3rem; position: absolute; top: 1rem; right: 1.5rem;">03</span>
+          <div class="badge badge-safe mb-3">STEP 03</div>
+          <h4 class="font-serif fw-bold mb-3" style="color: #1C1B18;">Receive Gentle Insights</h4>
+          <p class="small mb-0" style="color: #6A665E;">
+            Get your highlighted filler-word transcript, encouraging strengths report, and actionable vocabulary suggestions.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Final Call to Action Banner -->
+<section class="py-5 my-4">
+  <div class="container">
+    <div class="glass-card p-5 text-center border-0" style="background: #FFFFFF !important; box-shadow: 0 20px 50px rgba(28, 27, 24, 0.08) !important;">
+      <span class="badge badge-safe px-3 py-1 mb-3">BEGIN YOUR JOURNEY</span>
+      <h2 class="font-serif fw-bold display-5 mb-3" style="color: #1C1B18;">
+        Ready to speak without fear?
+      </h2>
+      <p class="small mx-auto mb-4" style="color: #6A665E; max-width: 520px; font-size: 1.1rem;">
+        Your voice deserves to be heard. Step into your safe space and start building executive confidence today.
+      </p>
+      <div class="d-flex justify-content-center">
+        <a href="{% url 'practice' %}" class="btn btn-safe-space rounded-pill px-5 py-3 fs-6">
+          <span>Let's talk</span> <i class="bi bi-arrow-up-right"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const framerStageBox = document.getElementById("framerStageBox");
+    const baseSceneImg = document.getElementById("baseSceneImg");
+    const overlayJohn = document.getElementById("overlayJohn");
+    const overlayDevi = document.getElementById("overlayDevi");
+    const overlayMike = document.getElementById("overlayMike");
+    const stageZones = document.querySelectorAll(".stage-zone");
+    const btnToggleSmileEffect = document.getElementById("btnToggleSmileEffect");
+    const stageMoodBadge = document.getElementById("stageMoodBadge");
+
+    let isSmilingMode = false;
+
+    // Create the Hover Me pill
+    const hoverPill = document.createElement("div");
+    hoverPill.style.position = "fixed";
+    hoverPill.style.pointerEvents = "none";
+    hoverPill.style.backgroundColor = "#1C1B18";
+    hoverPill.style.color = "#FFF";
+    hoverPill.style.padding = "6px 12px";
+    hoverPill.style.borderRadius = "20px";
+    hoverPill.style.fontSize = "0.85rem";
+    hoverPill.style.fontWeight = "500";
+    hoverPill.style.zIndex = "100";
+    hoverPill.style.opacity = "0";
+    hoverPill.style.transition = "opacity 0.15s ease";
+    hoverPill.innerText = "Hover me";
+    document.body.appendChild(hoverPill);
+
+    if (framerStageBox) {
+      // 3D Parallax & Hover Follow
+      framerStageBox.addEventListener("mousemove", (e) => {
+        const rect = framerStageBox.getBoundingClientRect();
+        // Calculate mouse position relative to center of the box
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        
+        // 3D Tilt effect (up to 5 degrees)
+        const rotateX = (y / rect.height) * -10;
+        const rotateY = (x / rect.width) * 10;
+        
+        framerStageBox.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        
+        // Dynamic layer parallax (layers shift slightly with the mouse to create depth)
+        if (overlayJohn) overlayJohn.style.transform = `scale(0.5) translateZ(10px) translate(${x * 0.05}px, ${y * 0.05}px)`;
+        if (overlayDevi) overlayDevi.style.transform = `scale(0.57) translateZ(20px) translate(${x * 0.08}px, ${y * 0.08}px)`;
+        if (overlayMike) overlayMike.style.transform = `scale(0.61) translateZ(10px) translate(${x * 0.05}px, ${y * 0.05}px)`;
+
+        // Move the hover pill
+        hoverPill.style.left = (e.clientX + 15) + "px";
+        hoverPill.style.top = (e.clientY + 15) + "px";
+      });
+
+      framerStageBox.addEventListener("mouseenter", () => {
+        if (!isSmilingMode) hoverPill.style.opacity = "1";
+        framerStageBox.style.transition = "transform 0.1s ease-out"; // fast follow for parallax
+      });
+
+      framerStageBox.addEventListener("mouseleave", () => {
+        hoverPill.style.opacity = "0";
+        // Reset container tilt smoothly
+        framerStageBox.style.transition = "transform 0.5s ease-out";
+        framerStageBox.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
+        
+        // Reset layer transforms
+        if (overlayJohn) overlayJohn.style.transform = `scale(0.5) translateZ(0px) translate(0px, 0px)`;
+        if (overlayDevi) overlayDevi.style.transform = `scale(0.57) translateZ(0px) translate(0px, 0px)`;
+        if (overlayMike) overlayMike.style.transform = `scale(0.61) translateZ(0px) translate(0px, 0px)`;
+      });
+    }
+
+    // Original Hover Dimming Effects
+    stageZones.forEach((zone) => {
+      zone.addEventListener("mouseenter", () => {
+        const target = zone.getAttribute("data-target");
+        if (!isSmilingMode) {
+          if (baseSceneImg) baseSceneImg.style.opacity = "0.15";
+          if (target === "John" && overlayJohn) overlayJohn.style.opacity = "1";
+          if (target === "Devi" && overlayDevi) overlayDevi.style.opacity = "1";
+          if (target === "Mike" && overlayMike) overlayMike.style.opacity = "1";
+        }
+      });
+      zone.addEventListener("mouseleave", () => {
+        const target = zone.getAttribute("data-target");
+        if (!isSmilingMode) {
+          if (baseSceneImg) baseSceneImg.style.opacity = "1";
+          if (target === "John" && overlayJohn) overlayJohn.style.opacity = "0";
+          if (target === "Devi" && overlayDevi) overlayDevi.style.opacity = "0";
+          if (target === "Mike" && overlayMike) overlayMike.style.opacity = "0";
+        }
+      });
+    });
+
+    if (btnToggleSmileEffect) {
+      btnToggleSmileEffect.addEventListener("click", () => {
+        isSmilingMode = !isSmilingMode;
+        if (isSmilingMode) {
+          if (overlayJohn) overlayJohn.style.opacity = "1";
+          if (overlayDevi) overlayDevi.style.opacity = "1";
+          if (overlayMike) overlayMike.style.opacity = "1";
+          if (stageMoodBadge) {
+            stageMoodBadge.innerHTML = `<i class="bi bi-emoji-laughing-fill me-1"></i> 🌟 Audience Smiling & Engaged!`;
+            stageMoodBadge.style.backgroundColor = "#E8F5E9";
+            stageMoodBadge.style.color = "#2E7D32";
+          }
+        } else {
+          if (overlayJohn) overlayJohn.style.opacity = "0";
+          if (overlayDevi) overlayDevi.style.opacity = "0";
+          if (overlayMike) overlayMike.style.opacity = "0";
+          if (stageMoodBadge) {
+            stageMoodBadge.innerHTML = `<i class="bi bi-emoji-neutral me-1"></i> Attentive Audience`;
+            stageMoodBadge.style.backgroundColor = "#EBF1ED";
+            stageMoodBadge.style.color = "#2E4637";
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

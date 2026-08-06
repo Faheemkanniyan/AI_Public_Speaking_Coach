@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Speech Evaluation Report — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <!-- 1. Top Bar & Action Buttons -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-secondary">
+    <div>
+      <span class="badge bg-dark border border-success text-neon-green px-3 py-1 rounded-pill mb-2">
+        <i class="bi bi-check2-circle me-1"></i> AI EVALUATION COMPLETE
+      </span>
+      <h1 class="fw-bold mb-1">{{ session.topic_title }}</h1>
+      <p class="text-secondary small mb-0">
+        Recorded on {{ session.created_at|date:"F d, Y - H:i" }} &bull; Target Duration: <strong>{{ session.duration_seconds }}s</strong> &bull; Time Consumed: <strong class="{% if report.time_utilization_percent < 30 %}text-danger{% elif report.time_utilization_percent < 70 %}text-warning{% else %}text-neon-green{% endif %}">{{ report.time_consumed_seconds }}s ({{ report.time_utilization_percent }}% utilized)</strong>
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{% url 'download_report_pdf' session.id %}" class="btn btn-outline-light rounded-pill px-4">
+        <i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i> Download PDF Report
+      </a>
+      <a href="{% url 'practice' %}" class="btn btn-neon-green rounded-pill px-4">
+        <i class="bi bi-mic-fill me-2"></i> Practice Another Speech
+      </a>
+    </div>
+  </div>
+
+  <!-- NEW: Interactive AI Audience & Speaker Reaction Stage -->
+  <div class="glass-card p-4 mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+      <div>
+        <h5 class="font-serif fw-bold mb-0" style="color: #1C1B18;">
+          <i class="bi bi-people-fill me-2" style="color: #2E4637;"></i>AI Audience &amp; Speaker Reaction Stage
+        </h5>
+        <small style="color: #6A665E;">
+          {% if report.overall_score >= 70 %}
+            <strong style="color: #2E7D32;">🎉 Excellent Delivery! Your audience is smiling and celebrating your performance!</strong>
+          {% else %}
+            Hover over John (Speaker), Devi (Coach), or Mike (Audience) to see interactive speaking feedback!
+          {% endif %}
+        </small>
+      </div>
+      <div>
+        {% if report.overall_score >= 70 %}
+          <span class="badge px-3 py-2 rounded-pill font-monospace" style="background-color: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7;">
+            <i class="bi bi-emoji-laughing-fill me-1"></i> 🌟 Audience Smiling &amp; Engaged!
+          </span>
+        {% else %}
+          <span class="badge px-3 py-2 rounded-pill font-monospace" style="background-color: #EBF1ED; color: #2E4637; border: 1px solid #D2DFD6;">
+            <i class="bi bi-emoji-smile me-1"></i> Responsive Audience
+          </span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="position-relative rounded-4 overflow-hidden shadow-sm" style="height: 380px; background: #FBF9F5; border: 2px solid #EAE5DE;">
+      <img src="https://framerusercontent.com/images/acKi7RGI4EK7cfKZwSY6GXX3bks.png?width=1536&amp;height=1024" alt="Base Scene" class="position-absolute inset-0 w-100 h-100" style="object-fit: contain; opacity: 1; transition: opacity 0.4s; z-index: 1;">
+      
+      <!-- Overlays: Auto-visible if score >= 70, otherwise fade in on hover -->
+      <img src="https://framerusercontent.com/images/zBKxg2wGfkbhKS83RGIhCPzPiU.png?width=716&amp;height=965" alt="John Overlay" id="repJohn" class="position-absolute w-100 h-100" style="left: -5px; top: 2px; object-fit: contain; transform: scale(0.53); transform-origin: center center; opacity: {% if report.overall_score >= 70 %}1{% else %}0{% endif %}; transition: opacity 0.4s, transform 0.4s; pointer-events: none; z-index: 5;">
+      <img src="https://framerusercontent.com/images/uhVdqbMxjJonOiPSaiy7PuLnZQ.png?width=561&amp;height=870" alt="Devi Overlay" id="repDevi" class="position-absolute w-100 h-100" style="left: 50px; top: -17px; object-fit: contain; transform: scale(0.60); transform-origin: center center; opacity: {% if report.overall_score >= 70 %}1{% else %}0{% endif %}; transition: opacity 0.4s, transform 0.4s; pointer-events: none; z-index: 5;">
+      <img src="https://framerusercontent.com/images/sSmCHTaCvIxwXKRLdaxCZgXKOLQ.png?width=425&amp;height=875" alt="Mike Overlay" id="repMike" class="position-absolute w-100 h-100" style="left: 135px; top: -3px; object-fit: contain; transform: scale(0.64); transform-origin: center center; opacity: {% if report.overall_score >= 70 %}1{% else %}0{% endif %}; transition: opacity 0.4s, transform 0.4s; pointer-events: none; z-index: 5;">
+      
+      <!-- Interactive Hover/Click Zones -->
+      <div class="rep-zone" data-target="John" style="position: absolute; left: 35%; top: 18%; width: 18%; height: 55%; z-index: 10; cursor: pointer;" title="John: Strong Posture & Delivery"></div>
+      <div class="rep-zone" data-target="Devi" style="position: absolute; left: 50%; top: 20%; width: 18%; height: 55%; z-index: 10; cursor: pointer;" title="Devi: Clear Structure & Flow"></div>
+      <div class="rep-zone" data-target="Mike" style="position: absolute; left: 68%; top: 18%; width: 18%; height: 55%; z-index: 10; cursor: pointer;" title="Mike: Audience Highly Engaged"></div>
+    </div>
+  </div>
+
+  <!-- 2. Overall Executive Score Card -->
+  <div class="row g-4 mb-4">
+    <!-- Left Column: Circular Score Gauge -->
+    <div class="col-lg-4">
+      <div class="glass-card p-4 h-100 text-center d-flex flex-column justify-content-center align-items-center">
+        <h6 class="text-secondary fw-semibold mb-3">OVERALL SPEAKING SCORE</h6>
+        
+        <div class="score-gauge-container mb-3">
+          <svg viewBox="0 0 100 100">
+            <circle class="score-gauge-bg" cx="50" cy="50" r="40"></circle>
+            <circle class="score-gauge-bar" cx="50" cy="50" r="40"
+              style="stroke-dasharray: 251.2; stroke-dashoffset: {{ report.overall_score|default:80|add:'-100'|default:'50' }}%;">
+            </circle>
+          </svg>
+          <div class="score-gauge-text">
+            <div class="display-5 fw-bolder text-light mb-0">{{ report.overall_score }}</div>
+            <small class="text-secondary">out of 100</small>
+          </div>
+        </div>
+
+        <span class="badge {% if report.overall_score >= 80 %}bg-success text-dark{% elif report.overall_score >= 70 %}bg-info text-dark{% elif report.overall_score >= 40 %}bg-warning text-dark{% else %}bg-danger text-light{% endif %} px-3 py-1 rounded-pill fw-bold">
+          {% if report.overall_score >= 80 %}EXECUTIVE ORATOR{% elif report.overall_score >= 70 %}PROFICIENT SPEAKER{% elif report.overall_score >= 40 %}DEVELOPING SPEAKER{% else %}MINIMAL ATTEMPT (< 5 WORDS){% endif %}
+        </span>
+      </div>
+    </div>
+
+    <!-- Right Column: 5 Core Competency Progress Bars -->
+    <div class="col-lg-8">
+      <div class="glass-card p-4 h-100 d-flex flex-column justify-content-center">
+        <h5 class="fw-bold mb-4">Skill Competency Breakdown</h5>
+
+        <div class="d-flex flex-column gap-3">
+          <!-- Grammar -->
+          <div>
+            <div class="d-flex justify-content-between small fw-semibold mb-1">
+              <span>Grammar & Syntax Accuracy</span>
+              <span class="text-neon-green">{{ report.grammar_score }}/100</span>
+            </div>
+            <div class="progress progress-neon">
+              <div class="progress-bar progress-bar-neon" style="width: {{ report.grammar_score }}%;"></div>
+            </div>
+          </div>
+
+          <!-- Vocabulary -->
+          <div>
+            <div class="d-flex justify-content-between small fw-semibold mb-1">
+              <span>Lexical Variety & Vocabulary</span>
+              <span class="text-neon-blue">{{ report.vocabulary_score }}/100</span>
+            </div>
+            <div class="progress progress-neon">
+              <div class="progress-bar progress-bar-neon" style="width: {{ report.vocabulary_score }}%;"></div>
+            </div>
+          </div>
+
+          <!-- Confidence -->
+          <div>
+            <div class="d-flex justify-content-between small fw-semibold mb-1">
+              <span>Vocal Confidence & Delivery</span>
+              <span class="text-warning">{{ report.confidence_score }}/100</span>
+            </div>
+            <div class="progress progress-neon">
+              <div class="progress-bar bg-warning" style="width: {{ report.confidence_score }}%;"></div>
+            </div>
+          </div>
+
+          <!-- Fluency -->
+          <div>
+            <div class="d-flex justify-content-between small fw-semibold mb-1">
+              <span>Fluency & Rhythm</span>
+              <span class="text-info">{{ report.fluency_score }}/100</span>
+            </div>
+            <div class="progress progress-neon">
+              <div class="progress-bar bg-info" style="width: {{ report.fluency_score }}%;"></div>
+            </div>
+          </div>
+
+          <!-- Communication -->
+          <div>
+            <div class="d-flex justify-content-between small fw-semibold mb-1">
+              <span>Overall Communication Impact</span>
+              <span class="text-neon-green">{{ report.communication_score }}/100</span>
+            </div>
+            <div class="progress progress-neon">
+              <div class="progress-bar progress-bar-neon" style="width: {{ report.communication_score }}%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Executive AI Summary -->
+  <div class="glass-card p-4 mb-4 border-success-subtle">
+    <div class="d-flex align-items-center gap-2 text-neon-green fw-bold mb-2">
+      <i class="bi bi-robot fs-5"></i>
+      <span>EXECUTIVE AI COACH SUMMARY</span>
+    </div>
+    <p class="text-light mb-0 lh-lg">{{ report.summary_feedback }}</p>
+  </div>
+
+  <!-- 4. Strengths & Areas for Improvement Cards -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-6">
+      <div class="glass-card p-4 h-100">
+        <h6 class="fw-bold text-success mb-3">
+          <i class="bi bi-check-circle-fill me-2"></i> Key Strengths
+        </h6>
+        <ul class="list-unstyled d-flex flex-column gap-2 mb-0">
+          {% for strength in report.strengths_list %}
+          <li class="d-flex align-items-start gap-2 small text-light">
+            <i class="bi bi-arrow-right-short text-success fs-5"></i>
+            <span>{{ strength }}</span>
+          </li>
+          {% empty %}
+          <li class="text-secondary small">Strong effort and clear delivery throughout the speech.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="glass-card p-4 h-100">
+        <h6 class="fw-bold text-warning mb-3">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i> Areas for Improvement
+        </h6>
+        <ul class="list-unstyled d-flex flex-column gap-2 mb-0">
+          {% for area in report.improvements_list %}
+          <li class="d-flex align-items-start gap-2 small text-light">
+            <i class="bi bi-arrow-right-short text-warning fs-5"></i>
+            <span>{{ area }}</span>
+          </li>
+          {% empty %}
+          <li class="text-secondary small">Continue practicing vocal variety and removing minor filler words.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Highlighted Grammar & Fluency Corrections -->
+  <div class="glass-card p-4 mb-4">
+    <h5 class="fw-bold mb-3">
+      <i class="bi bi-pencil-square text-neon-blue me-2"></i> Grammar & Phrase Corrections
+    </h5>
+
+    {% if report.corrections_list %}
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0">
+        <thead class="text-secondary small">
+          <tr>
+            <th style="width: 35%;">ORIGINAL PHRASE</th>
+            <th style="width: 35%;">RECOMMENDED CORRECTION</th>
+            <th>COACH EXPLANATION</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for corr in report.corrections_list %}
+          <tr>
+            <td>
+              <span class="text-danger-emphasis text-decoration-line-through">{{ corr.original }}</span>
+            </td>
+            <td>
+              <span class="text-success fw-semibold">{{ corr.corrected|default:corr.correction }}</span>
+            </td>
+            <td class="text-secondary small">{{ corr.explanation|default:corr.reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-secondary small mb-0">No significant grammatical errors detected. Outstanding articulation!</p>
+    {% endif %}
+  </div>
+
+  <!-- 6. Speech Transcription & Filler Words Analysis -->
+  {% with fa=report.filler_analysis %}
+  <div class="glass-card p-4 mb-4 border-warning-subtle">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+      <div>
+        <h5 class="fw-bold mb-1">
+          <i class="bi bi-soundwave text-warning me-2"></i> Transcribed Speech & Filler Word Detection
+        </h5>
+        <p class="text-secondary small mb-0">
+          Powered by AssemblyAI speech-to-text & acoustic disfluency analysis
+        </p>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <span class="badge bg-dark border border-secondary text-light px-3 py-2 rounded-pill">
+          <i class="bi bi-fonts me-1"></i> Total Words: <strong>{{ fa.total_words }}</strong>
+        </span>
+        <span class="badge bg-dark border {% if report.time_utilization_percent < 30 %}border-danger text-danger{% elif report.time_utilization_percent < 70 %}border-warning text-warning{% else %}border-info text-info{% endif %} px-3 py-2 rounded-pill" title="Target Duration: {{ session.duration_seconds }}s">
+          <i class="bi bi-stopwatch me-1"></i> Time Consumed: <strong>{{ report.time_consumed_seconds }}s / {{ session.duration_seconds }}s</strong> ({{ report.time_utilization_percent }}%)
+        </span>
+        <span class="badge bg-dark border {% if fa.filler_count > 3 %}border-warning text-warning{% else %}border-success text-neon-green{% endif %} px-3 py-2 rounded-pill">
+          <i class="bi bi-exclamation-circle me-1"></i> Filler Words: <strong>{{ fa.filler_count }}</strong> ({{ fa.filler_percentage }}%)
+        </span>
+      </div>
+    </div>
+
+    <!-- Filler Word Breakdown Legend -->
+    {% if fa.filler_breakdown %}
+    <div class="d-flex flex-wrap align-items-center gap-2 p-3 bg-dark bg-opacity-50 rounded-3 mb-3 border border-secondary">
+      <span class="small fw-semibold text-secondary me-2">Detected Fillers:</span>
+      {% for item in fa.filler_breakdown %}
+      <span class="badge bg-warning-subtle text-warning border border-warning px-3 py-1 rounded-pill">
+        {{ item.word }} <span class="badge bg-warning text-dark ms-1">{{ item.count }}x</span>
+      </span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="d-flex align-items-center gap-2 p-3 bg-dark bg-opacity-50 rounded-3 mb-3 border border-success">
+      <i class="bi bi-check2-circle text-neon-green fs-5"></i>
+      <span class="small text-neon-green fw-semibold">Zero filler words detected! Excellent vocal fluency and control.</span>
+    </div>
+    {% endif %}
+
+    <!-- Highlighted Transcript Box -->
+    <div class="p-4 bg-dark rounded-3 border border-secondary text-light small lh-lg font-monospace mb-4" style="font-size: 0.95rem;">
+      {{ fa.highlighted_transcript|safe }}
+    </div>
+
+    <!-- AI-Corrected Executive Transcript Box ("another box") -->
+    <div class="p-4 bg-dark rounded-3 border border-success text-light small lh-lg font-monospace" style="font-size: 0.95rem; background: linear-gradient(145deg, rgba(16, 185, 129, 0.08), rgba(0, 0, 0, 0.5)) !important; box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom border-secondary">
+        <span class="fw-bold text-neon-green fs-6"><i class="bi bi-magic me-2"></i>AI-Corrected Executive Speech (Polished Revision)</span>
+        <span class="badge bg-success-subtle text-neon-green border border-success px-3 py-1 rounded-pill">
+          <i class="bi bi-check2-all me-1"></i>0 Fillers &bull; Executive Grammar &bull; Polished Articulation
+        </span>
+      </div>
+      <div class="pt-1">
+        {{ fa.corrected_transcript_html|safe }}
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+
+</div>
+{% endblock %}

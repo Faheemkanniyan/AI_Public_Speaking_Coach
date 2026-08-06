@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <!-- 1. Header Banner & Streak Notice -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-secondary">
+    <div>
+      <h1 class="fw-bold mb-1">Speaker Dashboard</h1>
+      <p class="text-secondary small mb-0">Welcome back, <span class="text-light fw-semibold">{{ user.username }}</span>. Track your speech metrics and long-term fluency.</p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="streak-badge px-3 py-2 fs-6">
+        <i class="bi bi-fire"></i>
+        <span>{{ profile.practice_streak|default:1 }} Day Streak</span>
+      </div>
+      <a href="{% url 'practice' %}" class="btn btn-neon-green px-4 py-2">
+        <i class="bi bi-mic-fill me-2"></i> Practice Now
+      </a>
+    </div>
+  </div>
+
+  <!-- 2. Performance Metric Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="glass-card p-4 h-100 position-relative overflow-hidden">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="small text-secondary fw-semibold">AVERAGE SCORE</span>
+          <i class="bi bi-award-fill text-neon-green fs-5"></i>
+        </div>
+        <h2 class="fw-bolder mb-0 text-neon-green">{{ profile.average_score|default:76 }}<span class="fs-6 text-secondary">/100</span></h2>
+        <small class="text-secondary d-block mt-2">Overall Speaking Rating</small>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="glass-card p-4 h-100 position-relative overflow-hidden">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="small text-secondary fw-semibold">HIGHEST SCORE</span>
+          <i class="bi bi-trophy-fill text-warning fs-5"></i>
+        </div>
+        <h2 class="fw-bolder mb-0 text-warning">{{ profile.highest_score|default:88 }}<span class="fs-6 text-secondary">/100</span></h2>
+        <small class="text-secondary d-block mt-2">Personal Best Record</small>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="glass-card p-4 h-100 position-relative overflow-hidden">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="small text-secondary fw-semibold">WEEKLY GROWTH</span>
+          <i class="bi bi-graph-up-arrow text-neon-blue fs-5"></i>
+        </div>
+        <h2 class="fw-bolder mb-0 text-neon-blue">+{{ stats.weekly_improvement|default:"4.2" }}%</h2>
+        <small class="text-success d-block mt-2"><i class="bi bi-arrow-up-right me-1"></i>vs. previous week</small>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="glass-card p-4 h-100 position-relative overflow-hidden">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="small text-secondary fw-semibold">MONTHLY GROWTH</span>
+          <i class="bi bi-rocket-takeoff-fill text-info fs-5"></i>
+        </div>
+        <h2 class="fw-bolder mb-0 text-light">+{{ stats.monthly_improvement|default:"8.5" }}%</h2>
+        <small class="text-success d-block mt-2"><i class="bi bi-arrow-up-right me-1"></i>vs. previous month</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Chart.js Graphs (Radar & Line) -->
+  <div class="row g-4 mb-4">
+    <!-- Radar Chart: Speaking Competency -->
+    <div class="col-lg-5">
+      <div class="glass-card p-4 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0">Skill Breakdown</h5>
+          <span class="badge bg-dark border border-secondary text-secondary">5 Core Competencies</span>
+        </div>
+        <div style="height: 300px;">
+          <canvas id="radarChartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Line Chart: Score Progress Over Time -->
+    <div class="col-lg-7">
+      <div class="glass-card p-4 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0">Speaking Score Trend</h5>
+          <span class="badge bg-dark border border-secondary text-neon-blue">Recent Sessions</span>
+        </div>
+        <div style="height: 300px;">
+          <canvas id="lineChartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Recent Practice Speeches -->
+  <div class="glass-card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold mb-0">Recent Practice Speeches</h5>
+      <a href="{% url 'history' %}" class="small text-neon-green text-decoration-none fw-semibold">View All History <i class="bi bi-arrow-right"></i></a>
+    </div>
+
+    {% if recent_sessions %}
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0">
+        <thead class="text-secondary small">
+          <tr>
+            <th>SPEECH TOPIC</th>
+            <th>DATE</th>
+            <th>DURATION</th>
+            <th>OVERALL SCORE</th>
+            <th class="text-end">ACTION</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sess in recent_sessions %}
+          <tr>
+            <td>
+              <div class="fw-semibold text-light">{{ sess.topic_title }}</div>
+              <small class="text-secondary">{{ sess.transcript|slice:":60" }}...</small>
+            </td>
+            <td class="text-secondary small">{{ sess.created_at|date:"M d, Y" }}</td>
+            <td class="text-secondary small">{{ sess.duration_seconds }}s</td>
+            <td>
+              {% if sess.report %}
+              <span class="badge {% if sess.report.overall_score >= 80 %}bg-success-subtle text-success border border-success{% elif sess.report.overall_score >= 70 %}bg-info-subtle text-info border border-info{% else %}bg-warning-subtle text-warning border border-warning{% endif %} px-3 py-1 rounded-pill">
+                {{ sess.report.overall_score }}/100
+              </span>
+              {% else %}
+              <span class="badge bg-secondary">Pending</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a href="{% url 'result' sess.id %}" class="btn btn-sm btn-outline-light rounded-pill px-3">
+                View Report
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <i class="bi bi-mic text-secondary display-6 d-block mb-3"></i>
+      <p class="text-secondary mb-3">No practice sessions recorded yet. Start your first speech!</p>
+      <a href="{% url 'practice' %}" class="btn btn-neon-green rounded-pill px-4">Start First Speech</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Embedded JSON dataset for Chart.js -->
+<script id="chartsDataJson" type="application/json">
+  {{ charts_data_json|safe }}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/charts.js' %}"></script>
+{% endblock %}

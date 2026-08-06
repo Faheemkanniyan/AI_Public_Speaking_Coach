@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Analytics & Insights — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <!-- 1. Page Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-secondary">
+    <div>
+      <h1 class="fw-bold mb-1"><i class="bi bi-graph-up-arrow text-neon-blue me-2"></i>Analytics & Growth Insights</h1>
+      <p class="text-secondary small mb-0">Deep dive into your public speaking competencies and improvement over time.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'practice' %}" class="btn btn-neon-green rounded-pill px-4">
+        <i class="bi bi-mic-fill me-2"></i> Record Speech
+      </a>
+    </div>
+  </div>
+
+  <!-- 2. Summary Metric Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="glass-card p-4 h-100">
+        <span class="small text-secondary fw-semibold">TOTAL SPEECHES</span>
+        <h2 class="fw-bolder mb-0 text-neon-green mt-1">{{ stats.total_speeches|default:0 }}</h2>
+        <small class="text-secondary">Completed Sessions</small>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="glass-card p-4 h-100">
+        <span class="small text-secondary fw-semibold">TOTAL PRACTICE TIME</span>
+        <h2 class="fw-bolder mb-0 text-neon-blue mt-1">{{ stats.total_practice_minutes|default:0 }} <span class="fs-6 text-secondary">mins</span></h2>
+        <small class="text-secondary">Speaking on microphone</small>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="glass-card p-4 h-100">
+        <span class="small text-secondary fw-semibold">WEEKLY GROWTH</span>
+        <h2 class="fw-bolder mb-0 text-success mt-1">+{{ stats.weekly_improvement|default:"4.2" }}%</h2>
+        <small class="text-secondary">Past 7 days trend</small>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="glass-card p-4 h-100">
+        <span class="small text-secondary fw-semibold">MONTHLY GROWTH</span>
+        <h2 class="fw-bolder mb-0 text-light mt-1">+{{ stats.monthly_improvement|default:"8.5" }}%</h2>
+        <small class="text-secondary">Past 30 days trend</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Chart Grid -->
+  <div class="row g-4 mb-4">
+    <!-- Chart 1: Skill Radar Breakdown -->
+    <div class="col-lg-6">
+      <div class="glass-card p-4 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0">5-Dimension Competency Radar</h5>
+          <span class="badge bg-dark border border-secondary text-neon-green">Competency Radar</span>
+        </div>
+        <div style="height: 320px;">
+          <canvas id="radarChartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart 2: Historical Trajectory Line Chart -->
+    <div class="col-lg-6">
+      <div class="glass-card p-4 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0">Score Trajectory Over Time</h5>
+          <span class="badge bg-dark border border-secondary text-neon-blue">Overall Progress</span>
+        </div>
+        <div style="height: 320px;">
+          <canvas id="lineChartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart 3: Category Comparison Bar Chart -->
+    <div class="col-lg-6">
+      <div class="glass-card p-4 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0">Performance by Topic Category</h5>
+          <span class="badge bg-dark border border-secondary text-warning">Category Averages</span>
+        </div>
+        <div style="height: 300px;">
+          <canvas id="barChartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart 4: Practice Category Distribution Pie Chart -->
+    <div class="col-lg-6">
+      <div class="glass-card p-4 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0">Practice Focus Distribution</h5>
+          <span class="badge bg-dark border border-secondary text-info">Topic Breakdown</span>
+        </div>
+        <div style="height: 300px;">
+          <canvas id="pieChartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Embedded JSON dataset for Chart.js -->
+<script id="chartsDataJson" type="application/json">
+  {{ charts_data_json|safe }}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/charts.js' %}"></script>
+{% endblock %}

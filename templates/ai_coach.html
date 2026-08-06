@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}AI Speaking Coach Assistant — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <!-- 1. Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-secondary">
+    <div>
+      <h1 class="fw-bold mb-1"><i class="bi bi-chat-dots-fill text-neon-green me-2"></i>AI Speaking Coach</h1>
+      <p class="text-secondary small mb-0">Ask for advice on vocal delivery, eliminating filler words, pacing, and interview confidence.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-dark border border-success text-neon-green px-3 py-2 rounded-pill">
+        <i class="bi bi-circle-fill text-success me-1" style="font-size: 8px;"></i> AI Coach Online
+      </span>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column: Quick Prompt Chips -->
+    <div class="col-lg-4">
+      <div class="glass-card p-4 mb-4">
+        <h5 class="fw-bold mb-3"><i class="bi bi-lightbulb-fill text-warning me-2"></i>Quick Coaching Topics</h5>
+        <p class="text-secondary small mb-3">Click any topic below to ask your AI coach instantly:</p>
+
+        <div class="d-flex flex-column gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm text-start rounded-pill px-3 py-2 btn-prompt-chip" data-prompt="How can I improve my vocal confidence and project authority?">
+            <i class="bi bi-arrow-right-short text-neon-green me-1"></i> How can I improve vocal confidence?
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm text-start rounded-pill px-3 py-2 btn-prompt-chip" data-prompt="What are the best techniques to eliminate 'um' and 'uh' filler words?">
+            <i class="bi bi-arrow-right-short text-neon-blue me-1"></i> How do I eliminate filler words?
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm text-start rounded-pill px-3 py-2 btn-prompt-chip" data-prompt="What is the best framework to organize an impromptu speech under pressure?">
+            <i class="bi bi-arrow-right-short text-warning me-1"></i> How to structure an impromptu speech?
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm text-start rounded-pill px-3 py-2 btn-prompt-chip" data-prompt="How can I overcome anxiety and stage fright before a major presentation?">
+            <i class="bi bi-arrow-right-short text-info me-1"></i> Overcoming stage fright & anxiety
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm text-start rounded-pill px-3 py-2 btn-prompt-chip" data-prompt="How do I use deliberate silence and pauses to make my speech more powerful?">
+            <i class="bi bi-arrow-right-short text-neon-green me-1"></i> Using pauses for executive impact
+          </button>
+        </div>
+      </div>
+
+      <div class="glass-card p-4 text-center">
+        <i class="bi bi-mic-fill text-neon-green fs-2 mb-2 d-block"></i>
+        <h6 class="fw-bold">Ready to Practice?</h6>
+        <p class="text-secondary small mb-3">Apply your coaching tips in a live speech recording.</p>
+        <a href="{% url 'practice' %}" class="btn btn-sm btn-neon-green rounded-pill px-4">
+          Open Practice Studio
+        </a>
+      </div>
+    </div>
+
+    <!-- Right Column: Interactive Chat Box -->
+    <div class="col-lg-8">
+      <div class="glass-card p-4 d-flex flex-column" style="height: 680px; max-height: 82vh; overflow: hidden; position: relative;">
+        <!-- Chat History Scroll Box -->
+        <div id="coachChatMessages" class="flex-grow-1 ai-chat-box mb-3" style="overflow-y: auto !important; overflow-x: hidden !important; max-height: calc(680px - 100px); border: 1px solid #EAE5DE; background: #FAF8F5; border-radius: 16px; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; scroll-behavior: smooth;">
+          <!-- Initial Welcome Bot Message -->
+          <div class="chat-bubble-ai animate__animated animate__fadeIn">
+            <div class="d-flex align-items-center gap-2 text-neon-green mb-1">
+              <i class="bi bi-robot"></i>
+              <small class="fw-bold">SpeakPro AI Coach</small>
+            </div>
+            <div>
+              Hello {{ user.username }}! I am your AI Public Speaking Coach. How can I help you improve your articulation, vocal rhythm, or presentation confidence today?
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Form -->
+        <form id="coachChatForm" class="d-flex gap-2">
+          <input type="text" id="coachChatInput" class="form-control bg-dark border-secondary text-light rounded-pill px-4" placeholder="Ask your coach anything about public speaking..." autocomplete="off" required>
+          <button type="submit" class="btn btn-neon-green rounded-pill px-4 fw-bold">
+            <i class="bi bi-send-fill"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/ai_coach.js' %}"></script>
+{% endblock %}

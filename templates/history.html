@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Practice History — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <!-- 1. Header & Search Filter Form -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-secondary">
+    <div>
+      <h1 class="fw-bold mb-1"><i class="bi bi-clock-history text-neon-green me-2"></i>Practice History</h1>
+      <p class="text-secondary small mb-0">Review all your past speech recordings, AI evaluations, and ReportLab PDF reports.</p>
+    </div>
+    <form method="GET" action="{% url 'history' %}" class="d-flex gap-2">
+      <input type="text" name="q" value="{{ request.GET.q|default:'' }}" class="form-control form-control-sm bg-dark border-secondary text-light rounded-pill px-3" placeholder="Search speeches...">
+      <select name="category" class="form-select form-select-sm bg-dark border-secondary text-light rounded-pill px-3" style="width: auto;" onchange="this.form.submit()">
+        <option value="">All Categories</option>
+        <option value="general" {% if request.GET.category == 'general' %}selected{% endif %}>General</option>
+        <option value="leadership" {% if request.GET.category == 'leadership' %}selected{% endif %}>Leadership</option>
+        <option value="technology" {% if request.GET.category == 'technology' %}selected{% endif %}>Technology</option>
+        <option value="social" {% if request.GET.category == 'social' %}selected{% endif %}>Social</option>
+        <option value="interview" {% if request.GET.category == 'interview' %}selected{% endif %}>Interview</option>
+      </select>
+      <button type="submit" class="btn btn-sm btn-neon-green rounded-pill px-3">Filter</button>
+    </form>
+  </div>
+
+  <!-- 2. Speeches History Table -->
+  <div class="glass-card p-4 mb-4">
+    {% if sessions %}
+    <div class="table-responsive">
+      <table class="table table-dark table-hover align-middle mb-0">
+        <thead class="text-secondary small">
+          <tr>
+            <th>SPEECH TOPIC & TRANSCRIPT</th>
+            <th>CATEGORY</th>
+            <th>DATE RECORDED</th>
+            <th>DURATION</th>
+            <th>OVERALL SCORE</th>
+            <th class="text-end">ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sess in sessions %}
+          <tr>
+            <td>
+              <div class="fw-bold text-light">{{ sess.topic_title }}</div>
+              <small class="text-secondary d-block">{{ sess.transcript|slice:":75" }}...</small>
+            </td>
+            <td>
+              {% if sess.topic %}
+              <span class="badge bg-dark border border-secondary text-secondary">{{ sess.topic.get_category_display }}</span>
+              {% else %}
+              <span class="badge bg-dark border border-secondary text-secondary">General Practice</span>
+              {% endif %}
+            </td>
+            <td class="text-secondary small">{{ sess.created_at|date:"M d, Y - H:i" }}</td>
+            <td class="text-secondary small">{{ sess.duration_seconds }}s</td>
+            <td>
+              {% if sess.report %}
+              <span class="badge {% if sess.report.overall_score >= 80 %}bg-success-subtle text-success border border-success{% elif sess.report.overall_score >= 70 %}bg-info-subtle text-info border border-info{% else %}bg-warning-subtle text-warning border border-warning{% endif %} px-3 py-1 rounded-pill">
+                {{ sess.report.overall_score }}/100
+              </span>
+              {% else %}
+              <span class="badge bg-secondary">Processing</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <div class="d-flex justify-content-end gap-1">
+                <a href="{% url 'result' sess.id %}" class="btn btn-sm btn-outline-light rounded-pill px-3" title="View AI Report">
+                  Report
+                </a>
+                <a href="{% url 'download_report_pdf' sess.id %}" class="btn btn-sm btn-outline-info rounded-circle" title="Download PDF Report">
+                  <i class="bi bi-file-earmark-pdf-fill"></i>
+                </a>
+                <a href="{% url 'delete_session' sess.id %}" class="btn btn-sm btn-outline-danger rounded-circle" title="Delete Speech" onclick="return confirm('Are you sure you want to delete this speech recording and report?');">
+                  <i class="bi bi-trash3-fill"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 3. Pagination Controls -->
+    {% if sessions.has_other_pages %}
+    <nav aria-label="History pagination" class="mt-4">
+      <ul class="pagination pagination-sm justify-content-center mb-0">
+        {% if sessions.has_previous %}
+        <li class="page-item">
+          <a class="page-link bg-dark border-secondary text-light" href="?page={{ sessions.previous_page_number }}">&laquo; Prev</a>
+        </li>
+        {% endif %}
+
+        {% for i in sessions.paginator.page_range %}
+        <li class="page-item {% if sessions.number == i %}active{% endif %}">
+          <a class="page-link {% if sessions.number == i %}bg-success text-dark fw-bold border-success{% else %}bg-dark border-secondary text-light{% endif %}" href="?page={{ i }}">{{ i }}</a>
+        </li>
+        {% endfor %}
+
+        {% if sessions.has_next %}
+        <li class="page-item">
+          <a class="page-link bg-dark border-secondary text-light" href="?page={{ sessions.next_page_number }}">Next &raquo;</a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5">
+      <i class="bi bi-folder2-open text-secondary display-6 d-block mb-3"></i>
+      <p class="text-secondary mb-3">No speech sessions match your filter.</p>
+      <a href="{% url 'practice' %}" class="btn btn-neon-green rounded-pill px-4">Start Practice Session</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
