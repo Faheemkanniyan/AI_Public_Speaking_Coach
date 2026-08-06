@@ -28,13 +28,13 @@ SpeakPro AI keeps all your data local (SQLite, local uploads, local PDFs) while 
 graph TD
     User([User / Browser])
     
-    subgraph Frontend "Glassmorphic Dark UI"
+    subgraph Frontend [Glassmorphic Dark UI]
         UI[Dashboard & HTML5 Canvas]
         WebAudio[Web Audio API]
         WebSpeech[Web Speech API]
     end
     
-    subgraph Backend "Django 5 Core"
+    subgraph Backend [Django 5 Core]
         Django[Django Routing & Views]
         SpeechSvc[Speech Service]
         AISvc[Gemini AI / NLP Fallback]
@@ -42,7 +42,7 @@ graph TD
         Analytics[Analytics & Gamification]
     end
     
-    subgraph Storage "Local File System"
+    subgraph Storage [Local File System]
         DB[(SQLite Database)]
         Uploads[Audio Uploads /uploads/]
         PDFs[PDF Reports /reports/]
