@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Monthly Progress — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom" style="border-color: #EAE5DE !important;">
+    <div>
+      <h1 class="font-serif fw-bold mb-1" style="color: #1C1B18;">
+        <i class="bi bi-calendar-month me-2" style="color: #2E4637;"></i>Monthly Progress
+      </h1>
+      <p class="small mb-0" style="color: #6A665E;">Review your long-term speaking performance and growth.</p>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-md-4">
+      <div class="glass-card p-4 text-center h-100 d-flex flex-column justify-content-center">
+        <h6 class="text-muted fw-bold text-uppercase mb-2">Monthly Improvement</h6>
+        <div class="fs-1 font-serif fw-bold" style="color: #2E4637;">+{{ stats.monthly_improvement }}%</div>
+        <p class="small text-muted mt-2 mb-0">Overall score growth compared to last month.</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="glass-card p-4 text-center h-100 d-flex flex-column justify-content-center">
+        <h6 class="text-muted fw-bold text-uppercase mb-2">Total Practice Sessions</h6>
+        <div class="fs-1 font-serif fw-bold" style="color: #2E4637;">{{ stats.total_sessions }}</div>
+        <p class="small text-muted mt-2 mb-0">Consistent practice builds confidence.</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="glass-card p-4 text-center h-100 d-flex flex-column justify-content-center">
+        <h6 class="text-muted fw-bold text-uppercase mb-2">Total Practice Time</h6>
+        <div class="fs-1 font-serif fw-bold" style="color: #2E4637;">{{ stats.total_duration }} <span class="fs-5">sec</span></div>
+        <p class="small text-muted mt-2 mb-0">Every second counts towards mastery.</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="glass-card p-4 text-center">
+    <p class="text-muted mb-0">For full radar and line charts tracking your historical data, see the <a href="{% url 'analytics' %}" class="fw-bold" style="color:#2E4637;">Analytics page</a>.</p>
+  </div>
+</div>
+{% endblock %}

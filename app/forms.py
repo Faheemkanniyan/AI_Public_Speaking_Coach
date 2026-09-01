@@ -74,7 +74,7 @@ class UserProfileForm(forms.ModelForm):
 class SettingForm(forms.ModelForm):
     class Meta:
         model = Setting
-        fields = ("dark_mode", "notifications_enabled", "microphone_device", "language")
+        fields = ("dark_mode", "notifications_enabled")
         widgets = {
             "dark_mode": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "notifications_enabled": forms.CheckboxInput(attrs={"class": "form-check-input"}),

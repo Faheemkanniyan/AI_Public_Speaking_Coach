@@ -18,6 +18,12 @@ urlpatterns = [
     path('profile/', views.profile_view, name='profile'),
     path('ai-coach/', views.ai_coach_view, name='ai_coach'),
     path('settings/', views.settings_view, name='settings_page'),
+    path('onboarding/', views.onboarding_view, name='onboarding'),
+    path('progress/daily/', views.progress_daily_view, name='progress_daily'),
+    path('progress/weekly/', views.progress_weekly_view, name='progress_weekly'),
+    path('progress/monthly/', views.progress_monthly_view, name='progress_monthly'),
+    path('weaknesses/', views.weaknesses_view, name='weaknesses'),
+    path('goals/', views.goals_view, name='goals'),
 
     # Authentication
     path('signup/', views.signup_view, name='signup'),

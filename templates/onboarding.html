@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Personalized Onboarding — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="glass-card p-5">
+        <h2 class="font-serif fw-bold mb-4" style="color: #1C1B18;">Welcome to Your Personal Speech Coach!</h2>
+        <p class="mb-4 text-muted">To give you the best feedback and practice schedules, please tell us a little bit about your goals and how much time you can practice.</p>
+
+        <form method="POST">
+          {% csrf_token %}
+          
+          <div class="mb-4">
+            <label class="form-label fw-bold" style="color: #2E4637;">What is your main goal?</label>
+            <select name="main_goal" class="form-select border-0 bg-light py-2">
+              <option value="Improve general speaking">Improve general speaking</option>
+              <option value="Improve fluency">Improve fluency</option>
+              <option value="Improve pronunciation">Improve pronunciation</option>
+              <option value="Improve grammar">Improve grammar</option>
+              <option value="Improve vocabulary">Improve vocabulary</option>
+              <option value="Job interview preparation">Job interview preparation</option>
+              <option value="Presentation skills">Presentation skills</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-bold" style="color: #2E4637;">What language do you want to practice?</label>
+            <select name="language" class="form-select border-0 bg-light py-2">
+              <option value="English" {% if pref.preferred_language == 'English' %}selected{% endif %}>English</option>
+              <option value="Malayalam" {% if pref.preferred_language == 'Malayalam' %}selected{% endif %}>Malayalam</option>
+              <option value="Hindi" {% if pref.preferred_language == 'Hindi' %}selected{% endif %}>Hindi</option>
+              <option value="Tamil" {% if pref.preferred_language == 'Tamil' %}selected{% endif %}>Tamil</option>
+              <option value="Kannada" {% if pref.preferred_language == 'Kannada' %}selected{% endif %}>Kannada</option>
+            </select>
+          </div>
+          
+          <div class="mb-4">
+            <label class="form-label fw-bold" style="color: #2E4637;">How much time can you practice per day?</label>
+            <select name="daily_time" class="form-select border-0 bg-light py-2">
+              <option value="5">5 minutes</option>
+              <option value="10">10 minutes</option>
+              <option value="15" selected>15 minutes</option>
+              <option value="20">20 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="60">60 minutes</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-bold" style="color: #2E4637;">How many days per week do you want to practice?</label>
+            <select name="practice_days" class="form-select border-0 bg-light py-2">
+              <option value="1">1 day</option>
+              <option value="2">2 days</option>
+              <option value="3" selected>3 days</option>
+              <option value="4">4 days</option>
+              <option value="5">5 days</option>
+              <option value="6">6 days</option>
+              <option value="7">Every day</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-bold" style="color: #2E4637;">What is your current speaking level?</label>
+            <select name="current_level" class="form-select border-0 bg-light py-2">
+              <option value="Beginner">Beginner</option>
+              <option value="Intermediate" selected>Intermediate</option>
+              <option value="Advanced">Advanced</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-safe-space w-100 py-3 rounded-pill fw-bold">Generate My Practice Plan</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -29,15 +29,11 @@
       <span class="small" style="color: #6A665E;">Select language for Roulette topics, speech recognition &amp; AI evaluation</span>
     </div>
     <div id="languageTabsBar" class="d-flex flex-wrap gap-2">
-      <button type="button" class="btn btn-sm btn-safe-space lang-pill-btn active" data-lang="en-US">
-        🇺🇸 English (Default)
+      {% for lang in languages %}
+      <button type="button" class="btn btn-sm {% if forloop.first %}btn-safe-space active{% else %}btn-outline-safe{% endif %} lang-pill-btn" data-lang="{{ lang.code }}">
+        {{ lang.name }}
       </button>
-      <button type="button" class="btn btn-sm btn-outline-safe lang-pill-btn" data-lang="hi-IN">
-        🇮🇳 हिंदी (Hindi)
-      </button>
-      <button type="button" class="btn btn-sm btn-outline-safe lang-pill-btn" data-lang="ml-IN">
-        🇮🇳 മലയാളം (Malayalam)
-      </button>
+      {% endfor %}
     </div>
   </div>
 
@@ -209,7 +205,7 @@
 
         <div class="d-flex justify-content-between small" style="color: #8E8A80; font-size: 0.75rem;">
           <span>0 WPM</span>
-          <span class="fw-bold" style="color: #6A665E;">Target: 120–150 WPM</span>
+          <span id="targetWpmText" class="fw-bold" style="color: #6A665E;">Target: 120–150 WPM</span>
           <span>250+ WPM</span>
         </div>
       </div>
@@ -243,19 +239,22 @@
     </div>
   </div>
 
-  <!-- 6. Editable Speech-to-Text Transcript Box -->
+  <!-- 6. Live AI Teleprompter -->
   <div class="glass-card p-4 mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div>
-        <h5 class="font-serif fw-bold mb-0" style="color: #1C1B18;">Speech Transcript</h5>
-        <small style="color: #6A665E;">Speech is transcribed automatically. You can review and edit before AI evaluation.</small>
+        <h5 class="font-serif fw-bold mb-0" style="color: #1C1B18;">
+          <i class="bi bi-display me-2 text-danger"></i>Live AI Teleprompter
+        </h5>
+        <small style="color: #6A665E;">Speech is transcribed automatically. Filler words will be highlighted in real-time.</small>
       </div>
       <span class="badge badge-safe px-3 py-1">
-        Editable Text
+        Editable Teleprompter
       </span>
     </div>
 
-    <textarea id="transcriptTextarea" class="form-control rounded-3 p-3 mb-3" rows="6" placeholder="Your transcribed speech will appear here in real-time as you speak..."></textarea>
+    <!-- The new teleprompter div replaces the textarea -->
+    <div id="transcriptTextarea" class="teleprompter-box mb-3" contenteditable="true" data-placeholder="Your transcribed speech will appear here in real-time as you speak. Speak clearly..."></div>
 
     <div class="d-flex justify-content-end">
       <button id="btnAnalyzeSpeech" class="btn btn-safe-space px-5 py-3 fw-bold fs-6 shadow-sm">

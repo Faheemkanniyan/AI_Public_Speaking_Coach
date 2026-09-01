@@ -1,10 +1,11 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en" {% if user.is_authenticated and user.settings.dark_mode %}data-bs-theme="dark"{% else %}data-bs-theme="light"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}{{ APP_NAME }} — Safe Space to Master Public Speaking{% endblock %}</title>
+  <title>{% block title %}Public Speaking Coach{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💬</text></svg>">
   
   <!-- SEO & Meta -->
   <meta name="description" content="SpeakPro AI is a judgment-free Safe Space to master public speaking, overcome stage fright, and refine your vocal presence with private AI coaching and filler word detection.">
@@ -29,8 +30,8 @@
 
   <!-- Safe Space Minimalist Navbar -->
   <header>
-    <nav class="navbar navbar-expand-lg sticky-top py-3">
-      <div class="container">
+    <nav class="navbar navbar-expand-xl sticky-top py-3">
+      <div class="container-fluid px-2">
         <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'landing' %}">
           <span class="d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 38px; height: 38px; background-color: #EBF1ED; color: #2E4637;">
             <i class="bi bi-mic-fill fs-6"></i>
@@ -44,31 +45,41 @@
         </button>
 
         <div class="collapse navbar-collapse" id="navbarMain">
-          <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-1">
+          <ul class="navbar-nav mx-auto mb-2 mb-xl-0 gap-1" style="font-size: 0.75rem;">
             {% if user.is_authenticated %}
             <li class="nav-item">
-              <a class="nav-link px-3 rounded-pill {% if request.resolver_match.url_name == 'dashboard' %}active fw-bold{% endif %}" href="{% url 'dashboard' %}">
+              <a class="nav-link px-1 px-xl-2 rounded-pill {% if request.resolver_match.url_name == 'dashboard' %}active fw-bold{% endif %}" href="{% url 'dashboard' %}">
                 Dashboard
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link px-3 rounded-pill {% if request.resolver_match.url_name == 'practice' %}active fw-bold{% endif %}" href="{% url 'practice' %}">
+              <a class="nav-link px-1 px-xl-2 rounded-pill {% if request.resolver_match.url_name == 'practice' %}active fw-bold{% endif %}" href="{% url 'practice' %}">
                 Practice Studio
               </a>
             </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle px-1 px-xl-2 rounded-pill" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                My Progress
+              </a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{% url 'progress_daily' %}">Daily Progress</a></li>
+                <li><a class="dropdown-item" href="{% url 'progress_weekly' %}">Weekly Progress</a></li>
+                <li><a class="dropdown-item" href="{% url 'progress_monthly' %}">Monthly Progress</a></li>
+              </ul>
+            </li>
             <li class="nav-item">
-              <a class="nav-link px-3 rounded-pill {% if request.resolver_match.url_name == 'ai_coach' %}active fw-bold{% endif %}" href="{% url 'ai_coach' %}">
-                AI Coach
+              <a class="nav-link px-1 px-xl-2 rounded-pill {% if request.resolver_match.url_name == 'history' %}active fw-bold{% endif %}" href="{% url 'history' %}">
+                Speech History
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link px-3 rounded-pill {% if request.resolver_match.url_name == 'history' %}active fw-bold{% endif %}" href="{% url 'history' %}">
-                History
+              <a class="nav-link px-1 px-xl-2 rounded-pill {% if request.resolver_match.url_name == 'weaknesses' %}active fw-bold{% endif %}" href="{% url 'weaknesses' %}">
+                My Weaknesses
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link px-3 rounded-pill {% if request.resolver_match.url_name == 'analytics' %}active fw-bold{% endif %}" href="{% url 'analytics' %}">
-                Analytics
+              <a class="nav-link px-1 px-xl-2 rounded-pill {% if request.resolver_match.url_name == 'goals' %}active fw-bold{% endif %}" href="{% url 'goals' %}">
+                My Goals
               </a>
             </li>
             {% else %}
@@ -84,10 +95,10 @@
             {% endif %}
           </ul>
 
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-2" style="font-size: 0.75rem;">
             {% if user.is_authenticated %}
             <div class="dropdown">
-              <a class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle" style="color: #1C1B18;" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <a class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle" style="color: #1C1B18; font-size: 0.75rem;" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; background-color: #EBF1ED; color: #2E4637;">
                   {% if user.profile.profile_photo %}
                   <img src="{{ user.profile.profile_photo.url }}" alt="{{ user.username }}" class="rounded-circle w-100 h-100 object-fit-cover">
@@ -104,10 +115,10 @@
                 <li><a class="dropdown-item py-2 text-danger" href="{% url 'logout' %}"><i class="bi bi-box-arrow-right me-2"></i> Log Out</a></li>
               </ul>
             </div>
-            <a href="{% url 'practice' %}" class="btn btn-safe-space rounded-pill px-4">Let's talk <i class="bi bi-arrow-up-right"></i></a>
+            <a href="{% url 'practice' %}" class="d-none"></a>
             {% else %}
-            <a href="{% url 'login' %}" class="btn btn-outline-safe rounded-pill px-4">Log In</a>
-            <a href="{% url 'practice' %}" class="btn btn-safe-space rounded-pill px-4">Let's talk <i class="bi bi-arrow-up-right"></i></a>
+            <a href="{% url 'login' %}" class="btn btn-outline-safe rounded-pill px-2 text-nowrap" style="font-size: 0.75rem;">Log In</a>
+            <a href="{% url 'practice' %}" class="d-none"></a>
             {% endif %}
           </div>
         </div>
@@ -187,10 +198,8 @@
 
       <div class="d-flex flex-column flex-md-row justify-content-between align-items-center small" style="color: #8E8A80;">
         <div>
-          &copy; 2026 {{ APP_NAME }} — Safe Space to Master Public Speaking.
         </div>
         <div>
-          Template adapted from <span style="color: #2E4637; font-weight: 600;">Safe Space by Shivangi Agarwal</span>
         </div>
       </div>
     </div>

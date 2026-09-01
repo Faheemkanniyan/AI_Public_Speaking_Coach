@@ -64,10 +64,11 @@ class AssemblyAIService:
             if not audio_url:
                 return {"status": "error", "text": "", "error": "No upload_url received from AssemblyAI."}
 
-            # 2. Request transcription with disfluencies enabled
+            # 2. Request transcription with disfluencies enabled and auto language detection
             transcript_payload = {
                 "audio_url": audio_url,
                 "disfluencies": True,
+                "language_detection": True,
             }
             trans_res = requests.post(self.TRANSCRIPT_ENDPOINT, json=transcript_payload, headers=self.headers, timeout=15)
             if trans_res.status_code != 200:
@@ -91,6 +92,7 @@ class AssemblyAIService:
                         return {
                             "status": "completed",
                             "text": data.get("text", ""),
+                            "language_code": data.get("language_code", ""),
                             "words": data.get("words", []),
                             "transcript_id": transcript_id
                         }
@@ -116,11 +118,35 @@ class AssemblyAIService:
         words = re.findall(r'\b\w+\b', text.lower())
         total_words = max(1, len(words))
 
+        # Detect language based on unicode ranges
+        if re.search(r'[\u0900-\u097F]', text):
+            language = "hi-IN"
+            filler_list = ["मतलब", "जैसे", "तो", "उम्म", "आ"]
+            stt_fixes = []
+            fw_to_remove = ["मतलब", "जैसे", "तो", "उम्म", "आ"]
+        elif re.search(r'[\u0D00-\u0D7F]', text):
+            language = "ml-IN"
+            filler_list = ["ഉം", "അതായത്", "പിന്നെ", "ആ"]
+            stt_fixes = []
+            fw_to_remove = ["ഉം", "അതായത്", "പിന്നെ", "ആ"]
+        else:
+            language = "en-US"
+            filler_list = FILLER_WORDS_LIST
+            stt_fixes = [
+                (r'\bthe amputation is the most one thing in my our brain\b', 'ambition is a primary focus in our mind', 'Improved articulation and clarity'),
+                (r'\bmy our\b', 'our', 'Removed duplicate pronoun'),
+                (r'\bsomething like that\b', 'and related factors', 'Replaced informal qualifier with executive phrasing'),
+                (r'\bmore to tall\b', 'more to share', 'Corrected word choice error'),
+                (r'\bdo to call me\b', 'to discuss with me', 'Corrected spoken syntax fragment'),
+                (r'\bshould actually good\b', 'should actually be effective', 'Added missing auxiliary verb')
+            ]
+            fw_to_remove = ["actually", "literally", "basically", "um", "uh", "like"]
+
         breakdown_dict = {}
         total_fillers = 0
 
         # Sort filler list by length descending so multi-word phrases match first
-        sorted_fillers = sorted(FILLER_WORDS_LIST, key=len, reverse=True)
+        sorted_fillers = sorted(filler_list, key=len, reverse=True)
 
         for filler in sorted_fillers:
             pattern = r'\b' + re.escape(filler) + r'\b'
@@ -177,14 +203,6 @@ class AssemblyAIService:
         corrected_html = escape(text)
 
         # Apply STT articulation fixes first
-        stt_fixes = [
-            (r'\bthe amputation is the most one thing in my our brain\b', 'ambition is a primary focus in our mind', 'Improved articulation and clarity'),
-            (r'\bmy our\b', 'our', 'Removed duplicate pronoun'),
-            (r'\bsomething like that\b', 'and related factors', 'Replaced informal qualifier with executive phrasing'),
-            (r'\bmore to tall\b', 'more to share', 'Corrected word choice error'),
-            (r'\bdo to call me\b', 'to discuss with me', 'Corrected spoken syntax fragment'),
-            (r'\bshould actually good\b', 'should actually be effective', 'Added missing auxiliary verb')
-        ]
         for pat, replacement, reason_txt in stt_fixes:
             if re.search(pat, corrected_html, flags=re.IGNORECASE):
                 badge = rf'<span class="badge bg-success-subtle text-neon-green border border-success px-2 py-1 mx-1" style="font-size: 0.88rem;" title="Reason: {reason_txt}">{replacement}</span>'
@@ -204,7 +222,7 @@ class AssemblyAIService:
                         corrected_html = pattern.sub(badge_html, corrected_html, count=1)
 
         # Remove standalone filler words cleanly from uncorrected portions
-        for fw in ["actually", "literally", "basically", "um", "uh", "like"]:
+        for fw in fw_to_remove:
             corrected_html = re.sub(r'(?<!=")\b' + re.escape(fw) + r'\b,?\s*(?![^<]*>)', '', corrected_html, flags=re.IGNORECASE)
 
         # Fix repeated consecutive words outside HTML tags

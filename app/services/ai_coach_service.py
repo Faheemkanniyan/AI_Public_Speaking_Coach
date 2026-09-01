@@ -103,3 +103,71 @@ class AICoachService:
                 "Support that message with strong vocal variety, purposeful pauses, and clear body language. "
                 "Try practicing a 60-second speech on this topic in our Practice studio to get instant AI feedback!"
             )
+
+    def generate_practice_plan(self, user):
+        """
+        Generates a 7-day personalized practice plan based on user's CoachingPreference, ErrorHistory, and stats.
+        Uses deterministic fallback if Gemini isn't available, but uses Gemini to suggest custom activities if it is.
+        """
+        from app.models import CoachingPreference, ErrorHistory, PracticePlan, Statistic
+        import json
+        
+        pref, _ = CoachingPreference.objects.get_or_create(user=user)
+        stats, _ = Statistic.objects.get_or_create(user=user)
+        errors = ErrorHistory.objects.filter(user=user).order_by('-frequency')[:3]
+        
+        weaknesses = [err.error_type for err in errors] if errors else []
+        if not weaknesses:
+            weaknesses = ["Fluency", "Grammar"] # Defaults if no history
+            
+        # Clean up existing incomplete plans for the week
+        PracticePlan.objects.filter(user=user, completed=False).delete()
+        
+        days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        practice_days = days_of_week[:pref.practice_days_per_week] # Simplified allocation
+        
+        if self.model and self.api_key:
+            try:
+                prompt = f"""
+                You are SpeakPro AI, a Public Speaking Coach.
+                Create a weekly speech practice plan for a user learning {pref.preferred_language}.
+                Their goal is: {pref.main_goal}. Their level is: {pref.current_level}.
+                They can practice {pref.daily_practice_minutes} minutes per day for {pref.practice_days_per_week} days a week.
+                Their biggest weaknesses are: {', '.join(weaknesses)}.
+                
+                Generate a JSON array with exactly {pref.practice_days_per_week} objects. Each object must have:
+                "day": (String, e.g., "Monday")
+                "activity": (String, a specific speaking task or exercise)
+                "focus_area": (String, one of the weaknesses or "General")
+                "duration": (Integer, minutes, must sum close to their daily limit)
+                
+                Return ONLY valid JSON.
+                """
+                res = self.model.generate_content(prompt)
+                plan_data = json.loads(res.text.strip('` \njson'))
+                
+                for i, day_plan in enumerate(plan_data):
+                    PracticePlan.objects.create(
+                        user=user,
+                        week_number=1,
+                        day=day_plan.get("day", days_of_week[i % 7]),
+                        activity=day_plan.get("activity", "General Practice"),
+                        focus_area=day_plan.get("focus_area", "General"),
+                        duration=day_plan.get("duration", pref.daily_practice_minutes)
+                    )
+                return True
+            except Exception as e:
+                pass # Fallback to deterministic
+                
+        # Deterministic Fallback
+        for i, day in enumerate(practice_days):
+            focus = weaknesses[i % len(weaknesses)]
+            PracticePlan.objects.create(
+                user=user,
+                week_number=1,
+                day=day,
+                activity=f"Focus on improving {focus} with a {pref.daily_practice_minutes}-minute speech on {pref.main_goal}",
+                focus_area=focus,
+                duration=pref.daily_practice_minutes
+            )
+        return True

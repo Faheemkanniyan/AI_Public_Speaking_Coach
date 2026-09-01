@@ -235,6 +235,17 @@ document.addEventListener("DOMContentLoaded", function () {
       const langName = lang === "hi-IN" ? "हिंदी (Hindi)" : (lang === "ml-IN" ? "മലയാളം (Malayalam)" : "English");
       showToast(`Language switched to ${langName}. Topic Roulette & Speech Recognition updated!`, "info");
 
+      const targetWpmText = document.getElementById("targetWpmText");
+      if (targetWpmText) {
+        if (lang === "hi-IN") {
+          targetWpmText.textContent = "Target: 100–130 WPM";
+        } else if (lang === "ml-IN") {
+          targetWpmText.textContent = "Target: 80–110 WPM";
+        } else {
+          targetWpmText.textContent = "Target: 120–150 WPM";
+        }
+      }
+
       // Spin roulette in new language
       spinTopicRoulette(currentCategory);
     });
@@ -627,7 +638,10 @@ function resetRecording() {
   audioBlob = null;
   audioChunks = [];
   const transcriptBox = document.getElementById("transcriptTextarea");
-  if (transcriptBox) transcriptBox.value = "";
+  if (transcriptBox) {
+    transcriptBox.value = "";
+    transcriptBox.innerHTML = "";
+  }
   const btnStart = document.getElementById("btnStartRecord");
   if (btnStart) btnStart.textContent = "Start Recording";
   showToast("Speech practice studio reset.", "info");
@@ -649,7 +663,23 @@ function setupSpeechRecognition() {
   recognition.lang = window.selectedLanguage || "en-US";
 
   const transcriptBox = document.getElementById("transcriptTextarea");
-  let finalTranscript = transcriptBox ? transcriptBox.value : "";
+  let finalTranscript = transcriptBox ? (transcriptBox.value || transcriptBox.innerText || "") : "";
+
+  function highlightFillers(text) {
+    const fillers = ["um", "uh", "like", "you know", "literally", "basically", "so yeah"];
+    let highlighted = text;
+    let hasFiller = false;
+    fillers.forEach(f => {
+      const regex = new RegExp(`\\b${f}\\b`, 'gi');
+      if (regex.test(highlighted)) hasFiller = true;
+      highlighted = highlighted.replace(regex, `<span class="highlight-filler">$&</span>`);
+    });
+    // Haptic feedback (Smartwatch / Apple Watch / Mobile)
+    if (hasFiller && navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]);
+    }
+    return highlighted;
+  }
 
   recognition.onresult = (event) => {
     let interimTranscript = "";
@@ -661,7 +691,14 @@ function setupSpeechRecognition() {
       }
     }
     if (transcriptBox) {
-      transcriptBox.value = (finalTranscript + interimTranscript).trim();
+      let combined = (finalTranscript + interimTranscript).trim();
+      if (transcriptBox.tagName.toLowerCase() === "textarea") {
+        transcriptBox.value = combined;
+      } else {
+        transcriptBox.innerHTML = highlightFillers(combined);
+        // Teleprompter Auto-Scroll
+        transcriptBox.scrollTop = transcriptBox.scrollHeight;
+      }
     }
   };
 
@@ -913,7 +950,7 @@ function resetAcousticTelemetryDisplay() {
 
 function updateWpmSpeedometerGauge() {
   const textEl = document.getElementById("transcriptTextarea");
-  const text = textEl ? textEl.value.trim() : "";
+  const text = textEl ? (textEl.value || textEl.innerText || "").trim() : "";
   const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
 
   if (elapsedSeconds >= 2 && words > 0) {
@@ -960,6 +997,11 @@ function updateWpmSpeedometerGauge() {
     wpmBadge.style.color = "#FFFFFF";
     wpmBadge.style.borderColor = "#B02A37";
     if (wpmBar) wpmBar.style.backgroundColor = "#DC3545";
+
+    // Sustained Pacing Haptic Warning (long pulse)
+    if (elapsedSeconds > 5 && Math.random() < 0.25 && navigator.vibrate) {
+      navigator.vibrate(200);
+    }
   }
 }
 
@@ -985,7 +1027,11 @@ function populateDemoSpeech() {
 
   const transcriptBox = document.getElementById("transcriptTextarea");
   if (transcriptBox) {
-    transcriptBox.value = demoText;
+    if (transcriptBox.tagName.toLowerCase() === "textarea") {
+      transcriptBox.value = demoText;
+    } else {
+      transcriptBox.innerHTML = demoText;
+    }
     if (window.triggerAudienceSmileEffect) window.triggerAudienceSmileEffect(true);
     showToast("Demo speech loaded! Audience is smiling & engaged!", "success");
   }
@@ -1032,7 +1078,14 @@ function populateDemoSpeech() {
  */
 async function submitSpeechForAnalysis() {
   const transcriptBox = document.getElementById("transcriptTextarea");
-  const transcript = transcriptBox ? transcriptBox.value.trim() : "";
+  let transcript = "";
+  if (transcriptBox) {
+    if (transcriptBox.tagName.toLowerCase() === "textarea") {
+      transcript = (transcriptBox.value || "").trim();
+    } else {
+      transcript = (transcriptBox.innerText || transcriptBox.textContent || "").trim();
+    }
+  }
 
   if (!transcript) {
     showToast("Please speak into your microphone or type a speech transcript before analyzing.", "error");

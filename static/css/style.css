@@ -455,3 +455,117 @@ h3, h4, h5, h6 {
 .chat-bubble-ai p:last-child {
   margin-bottom: 0;
 }
+
+/* --- Live AI Teleprompter --- */
+.teleprompter-box {
+  background-color: #111;
+  color: #f1f1f1;
+  border: 4px solid #2E4637;
+  font-family: 'Inter', sans-serif;
+  font-size: 1.65rem;
+  line-height: 1.8;
+  padding: 2rem;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 8px 16px rgba(0,0,0,0.4);
+  height: 350px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  outline: none;
+}
+.teleprompter-box::-webkit-scrollbar {
+  width: 8px;
+}
+.teleprompter-box::-webkit-scrollbar-thumb {
+  background: #2E4637;
+  border-radius: 4px;
+}
+.highlight-filler {
+  background-color: rgba(220, 38, 38, 0.2);
+  color: #ff6b6b;
+  border-bottom: 3px solid #ff6b6b;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+/* --- PREMIUM DARK MODE (NEON GLASSMORPHISM) --- */
+[data-bs-theme="dark"] {
+  --bg-main: #0B0E14 !important;          /* Deep space black */
+  --bg-card: rgba(20, 24, 32, 0.65) !important; /* Glassy dark card */
+  --bg-subtle: rgba(255, 255, 255, 0.05) !important;
+  --border-card: rgba(255, 255, 255, 0.1) !important;
+  --border-focus: #00FF9D !important;     /* Neon Green focus */
+  --text-primary: #FFFFFF !important;     
+  --text-secondary: #A0AAB5 !important;   
+  --text-muted: #6B7684 !important;       
+  --primary-sage: #00FF9D !important;     /* Neon Green primary */
+  --primary-sage-hover: #00CC7E !important;
+  --accent-terracotta: #FF3366 !important;/* Neon Pink accent */
+  --shadow-sm: 0 4px 12px rgba(0, 255, 157, 0.05) !important;
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.4) !important;
+  --shadow-lg: 0 24px 48px rgba(0, 255, 157, 0.15) !important;
+}
+
+[data-bs-theme="dark"] .glass-card {
+  background-color: var(--bg-card) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-bs-theme="dark"] .navbar {
+  background-color: rgba(11, 14, 20, 0.8) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-bs-theme="dark"] .btn-neon-green, 
+[data-bs-theme="dark"] .btn-primary, 
+[data-bs-theme="dark"] .btn-safe-space, 
+[data-bs-theme="dark"] .btn-lets-talk {
+  background: linear-gradient(135deg, #00FF9D, #00CC7E) !important;
+  color: #0B0E14 !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(0, 255, 157, 0.3) !important;
+}
+
+[data-bs-theme="dark"] .btn-outline-light, 
+[data-bs-theme="dark"] .btn-outline-safe {
+  color: #00FF9D !important;
+  border-color: #00FF9D !important;
+}
+
+[data-bs-theme="dark"] .btn-outline-light:hover, 
+[data-bs-theme="dark"] .btn-outline-safe:hover {
+  background-color: rgba(0, 255, 157, 0.1) !important;
+  color: #00FF9D !important;
+}
+
+[data-bs-theme="dark"] .badge-safe,
+[data-bs-theme="dark"] .safe-space-badge {
+  background-color: rgba(0, 255, 157, 0.1) !important;
+  color: #00FF9D !important;
+  border-color: rgba(0, 255, 157, 0.2) !important;
+}
+
+[data-bs-theme="dark"] .safe-space-badge i {
+  color: #00FF9D !important;
+}
+
+[data-bs-theme="dark"] .ai-chat-box {
+  background-color: rgba(20, 24, 32, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-bs-theme="dark"] .chat-bubble-ai {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #E2E8F0 !important;
+}
+
+[data-bs-theme="dark"] footer,
+[data-bs-theme="dark"] footer .bg-light {
+  background-color: #0B0E14 !important;
+  border-top-color: rgba(255, 255, 255, 0.05) !important;
+}

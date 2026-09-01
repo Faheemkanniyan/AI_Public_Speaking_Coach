@@ -21,6 +21,47 @@
       </a>
     </div>
   </div>
+  <!-- 1.5 Milestone Progress Bars -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-6">
+      <div class="glass-card p-4 h-100 position-relative overflow-hidden" style="border-left: 4px solid #ffb020;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="fw-bold mb-0" style="color: #1C1B18;"><i class="bi bi-clock-history me-2 text-warning"></i>Daily Goal</h5>
+          {% if daily_goal_met %}
+          <span class="badge bg-success-subtle text-success border border-success"><i class="bi bi-check-circle-fill me-1"></i>Achieved</span>
+          {% else %}
+          <span class="badge bg-warning-subtle text-warning border border-warning">{{ daily_remaining_mins }} mins left</span>
+          {% endif %}
+        </div>
+        <p class="small text-secondary mb-3">Practice {{ coaching_pref.daily_practice_minutes|default:15 }} minutes per day</p>
+        <div class="progress" style="height: 10px;">
+          <div class="progress-bar {% if daily_goal_met %}bg-success{% else %}bg-warning{% endif %}" role="progressbar" style="width: {{ daily_progress_percent }}%;" aria-valuenow="{{ daily_progress_percent }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <div class="text-end mt-1 small fw-semibold text-secondary">
+          {{ daily_duration_mins }} / {{ coaching_pref.daily_practice_minutes|default:15 }} mins
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="glass-card p-4 h-100 position-relative overflow-hidden" style="border-left: 4px solid #4a90e2;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="fw-bold mb-0" style="color: #1C1B18;"><i class="bi bi-calendar-check me-2 text-primary"></i>Weekly Goal</h5>
+          {% if weekly_goal_met %}
+          <span class="badge bg-success-subtle text-success border border-success"><i class="bi bi-check-circle-fill me-1"></i>Achieved</span>
+          {% else %}
+          <span class="badge bg-primary-subtle text-primary border border-primary">{{ weekly_remaining_days }} days left</span>
+          {% endif %}
+        </div>
+        <p class="small text-secondary mb-3">Practice {{ coaching_pref.practice_days_per_week|default:3 }} days per week</p>
+        <div class="progress" style="height: 10px;">
+          <div class="progress-bar {% if weekly_goal_met %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ weekly_progress_percent }}%;" aria-valuenow="{{ weekly_progress_percent }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <div class="text-end mt-1 small fw-semibold text-secondary">
+          {{ unique_days_count }} / {{ coaching_pref.practice_days_per_week|default:3 }} days
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- 2. Performance Metric Cards -->
   <div class="row g-3 mb-4">
@@ -65,6 +106,46 @@
         </div>
         <h2 class="fw-bolder mb-0 text-light">+{{ stats.monthly_improvement|default:"8.5" }}%</h2>
         <small class="text-success d-block mt-2"><i class="bi bi-arrow-up-right me-1"></i>vs. previous month</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Personalized Practice Plan -->
+  <div class="row g-4 mb-4">
+    <div class="col-12">
+      <div class="glass-card p-4 position-relative overflow-hidden" style="border-left: 4px solid #2E4637;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0" style="color: #1C1B18;"><i class="bi bi-robot me-2" style="color: #2E4637;"></i>My Speech Coach</h5>
+          <span class="badge badge-safe px-3 py-1">{{ coaching_pref.current_level|default:"Intermediate" }} Level</span>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3 mb-md-0">
+            <h6 class="text-muted text-uppercase small fw-bold">Current Focus</h6>
+            <p class="mb-3 fs-5" style="color: #2E4637;">
+              {% if todays_plan %}
+                Your main improvement area is <span class="fw-bold">{{ todays_plan.focus_area }}</span>.
+              {% else %}
+                Generating your next personalized focus...
+              {% endif %}
+            </p>
+            {% if tomorrow_focus %}
+            <div class="p-3 rounded-3 mt-3" style="background-color: #fcf9f2; border-left: 4px solid #ffb020;">
+              <h6 class="text-uppercase small fw-bold mb-1" style="color: #8E8A80;"><i class="bi bi-lightbulb-fill me-1 text-warning"></i>Focus For Tomorrow</h6>
+              <p class="mb-0 small" style="color: #1C1B18;">{{ tomorrow_focus }}</p>
+            </div>
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <h6 class="text-muted text-uppercase small fw-bold">Today's Practice</h6>
+            {% if todays_plan %}
+            <p class="mb-2 fs-5" style="color: #1C1B18;">{{ todays_plan.activity }} ({{ todays_plan.duration }} mins)</p>
+            <a href="{% url 'practice' %}" class="btn btn-safe-space rounded-pill mt-1">Start Today's Practice</a>
+            {% else %}
+            <p class="mb-2 fs-5" style="color: #1C1B18;">No specific practice scheduled for today.</p>
+            <a href="{% url 'practice' %}" class="btn btn-outline-safe rounded-pill mt-1">Practice Anyway</a>
+            {% endif %}
+          </div>
+        </div>
       </div>
     </div>
   </div>

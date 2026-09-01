@@ -54,7 +54,7 @@ class SpeechService:
         if audio_file:
             audio_path = self.save_audio_file(audio_file, user.id)
 
-            # Try AssemblyAI speech-to-text transcription with filler word detection
+            # Use AssemblyAI for highly accurate transcription & automatic language detection
             try:
                 from app.services.assemblyai_service import AssemblyAIService
                 aai_service = AssemblyAIService()
@@ -63,6 +63,20 @@ class SpeechService:
                     aai_result = aai_service.transcribe_audio(full_audio_path)
                     if aai_result.get("status") == "completed" and aai_result.get("text"):
                         transcript_text = aai_result.get("text", transcript_text)
+                        
+                        # Use AssemblyAI's auto-detected language to override the frontend's language selection
+                        detected_lang = aai_result.get("language_code", "")
+                        if detected_lang:
+                            if detected_lang.startswith("hi"):
+                                language = "hi-IN"
+                            elif detected_lang.startswith("ml"):
+                                language = "ml-IN"
+                            elif detected_lang.startswith("ta"):
+                                language = "ta-IN"
+                            elif detected_lang.startswith("kn"):
+                                language = "kn-IN"
+                            elif detected_lang.startswith("en"):
+                                language = "en-US"
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).warning(f"AssemblyAI transcription fallback: {e}")
@@ -73,6 +87,7 @@ class SpeechService:
             topic_title=topic_title or (topic.title if topic else "General Practice"),
             transcript=transcript_text,
             duration_seconds=int(duration_seconds or 60),
+            language=language,
         )
         if audio_path:
             session.audio_file = audio_path
@@ -110,6 +125,9 @@ class SpeechService:
 
         # Update UserProfile & Statistics
         self._update_user_stats(user, session, report)
+        
+        # Track recurring errors
+        self._update_error_history(user, report.get_mistakes())
 
         # Generate PDF report automatically in reports/
         try:
@@ -170,3 +188,37 @@ class SpeechService:
 
         profile.save()
         stats.save()
+
+    def _update_error_history(self, user, mistakes):
+        """
+        Extracts mistakes from the speech report and tracks them for recurring errors.
+        """
+        from app.models import ErrorHistory
+        from django.utils import timezone
+
+        if not mistakes:
+            return
+
+        for mistake in mistakes:
+            original = mistake.get("original", "").strip()
+            correction = mistake.get("correction", "").strip()
+            explanation = mistake.get("explanation", "").strip()
+            error_type = mistake.get("type", "Grammar")
+
+            if not original:
+                continue
+                
+            # Very basic check for recurring errors: exact matching or very similar
+            # In a full NLP solution, we'd use semantic similarity
+            existing = ErrorHistory.objects.filter(user=user, error_type=error_type, error_text__icontains=original[:20]).first()
+            if existing:
+                existing.frequency += 1
+                existing.last_detected = timezone.now()
+                existing.save()
+            else:
+                ErrorHistory.objects.create(
+                    user=user,
+                    error_type=error_type,
+                    error_text=original,
+                    correction=correction + " (" + explanation + ")"
+                )

@@ -59,6 +59,7 @@ class SpeechSession(models.Model):
     audio_file = models.FileField(upload_to="speech_audio/", blank=True, null=True)
     transcript = models.TextField(help_text="Transcribed speech text.")
     duration_seconds = models.IntegerField(default=60)
+    language = models.CharField(max_length=20, default="en-US")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -69,6 +70,16 @@ class SpeechSession(models.Model):
             self.topic_title = self.topic.title
         super().save(*args, **kwargs)
 
+    @property
+    def language_display_name(self):
+        mapping = {
+            "en-US": "English",
+            "hi-IN": "Hindi",
+            "ml-IN": "Malayalam",
+            "ta-IN": "Tamil",
+            "kn-IN": "Kannada"
+        }
+        return mapping.get(self.language, self.language)
 
 class SpeechReport(models.Model):
     """
@@ -250,15 +261,66 @@ class Setting(models.Model):
         return f"Settings for {self.user.username}"
 
 
+class CoachingPreference(models.Model):
+    """
+    Stores onboarding preferences like daily practice time, days per week, goal, and language.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="coaching_preference")
+    preferred_language = models.CharField(max_length=50, default="English")
+    daily_practice_minutes = models.IntegerField(default=15)
+    practice_days_per_week = models.IntegerField(default=3)
+    main_goal = models.CharField(max_length=100, default="Improve general speaking")
+    current_level = models.CharField(max_length=50, default="Intermediate")
+    onboarding_completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Coaching Preferences for {self.user.username}"
+
+
+class PracticePlan(models.Model):
+    """
+    Personalized practice schedule generated for the user.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="practice_plans")
+    week_number = models.IntegerField(default=1)
+    day = models.CharField(max_length=20) # e.g., Monday, Tuesday
+    activity = models.CharField(max_length=255)
+    duration = models.IntegerField(help_text="Duration in minutes", default=10)
+    focus_area = models.CharField(max_length=100)
+    completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Plan for {self.user.username} - {self.day} (Week {self.week_number})"
+
+
+class ErrorHistory(models.Model):
+    """
+    Tracks recurring errors to adapt future practice plans.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="error_history")
+    error_type = models.CharField(max_length=100) # e.g., Grammar, Fluency, Vocabulary
+    error_text = models.TextField(help_text="The mistake the user made")
+    correction = models.TextField(help_text="The corrected version")
+    frequency = models.IntegerField(default=1)
+    first_detected = models.DateTimeField(auto_now_add=True)
+    last_detected = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.error_type} ({self.frequency}x)"
+
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     """
-    Automatically create Profile, Statistics, and Setting for new Users.
+    Automatically create Profile, Statistics, Setting, and CoachingPreference for new Users.
     """
     if created:
         UserProfile.objects.create(user=instance)
         Statistic.objects.create(user=instance)
         Setting.objects.create(user=instance)
+        CoachingPreference.objects.create(user=instance)
 
 
 @receiver(post_save, sender=User)
@@ -267,5 +329,6 @@ def save_user_profile(sender, instance, **kwargs):
         instance.profile.save()
         instance.statistics.save()
         instance.settings.save()
+        instance.coaching_preference.save()
     except Exception:
         pass
