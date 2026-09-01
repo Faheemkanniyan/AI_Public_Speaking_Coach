@@ -1,10 +1,10 @@
 <div align="center">
 
-<h1 align="center">SpeakPro AI</h1>
+<h1 align="center">Public Specking Coach (formerly SpeakPro AI)</h1>
 
 **The Enterprise-Grade AI-Powered Public Speaking Coach**
 
-<sub>Master your public speaking skills with real-time audio visualization, 10-dimension AI evaluations, and gamified progress tracking.</sub>
+<sub>Master your public speaking skills with real-time audio visualization, 10-dimension AI evaluations, gamified progress tracking, and personalized goal setting.</sub>
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](requirements.txt) [![Django](https://img.shields.io/badge/django-5.0-092E20.svg)](requirements.txt) [![Gemini AI](https://img.shields.io/badge/AI-Google_Gemini-orange.svg)](requirements.txt) [![Local first](https://img.shields.io/badge/privacy-local--first-brightgreen.svg)]()
 
@@ -16,13 +16,13 @@
 
 ---
 
-**SpeakPro AI** is a modern web application built with Python, Django 5, and Google Gemini AI. It acts as your personal speaking coach, analyzing your speech across 10 different metrics, highlighting grammatical errors, and providing executive actionable suggestions. With a stunning Glassmorphic Dark Mode UI/UX, practicing your speeches has never looked or felt better.
+**Public Specking Coach** is a modern web application built with Python, Django 5, and Google Gemini AI. It acts as your personal speaking coach, analyzing your speech across 10 different metrics, highlighting grammatical errors, and providing executive actionable suggestions. With a stunning Glassmorphic Dark Mode UI/UX, practicing your speeches has never looked or felt better.
 
 <a id="architecture"></a>
 
 ## 🏗️ Architecture & How It Works
 
-SpeakPro AI keeps all your data local (SQLite, local uploads, local PDFs) while optionally leveraging the power of Google Gemini AI for advanced speech evaluation. 
+The platform keeps your audio and PDF data local while leveraging the power of Google Gemini AI for advanced speech evaluation. 
 
 ```mermaid
 graph TD
@@ -39,7 +39,7 @@ graph TD
         SpeechSvc[Speech Service]
         AISvc[Gemini AI / NLP Fallback]
         ReportSvc[ReportLab PDF Engine]
-        Analytics[Analytics & Gamification]
+        Analytics[Analytics & Goal Tracking]
     end
     
     subgraph Storage [Local File System]
@@ -68,11 +68,11 @@ graph TD
     SpeechSvc --> Uploads
 ```
 
-SpeakPro is highly modular:
+The system is highly modular:
 - **Speech Service**: Handles file uploads, metadata extraction, and session management.
 - **AI Service**: Connects to Google Gemini (or uses an offline NLP fallback) to evaluate the speech across 10 metrics.
 - **Report Service**: Uses ReportLab to generate dynamic, professional PDF summaries of your sessions.
-- **Analytics Service**: Drives Chart.js visualizations for your gamified dashboard.
+- **Analytics Service**: Drives Chart.js visualizations for your gamified dashboard, daily/weekly/monthly progress, and weaknesses tracking.
 
 <a id="workflows"></a>
 
@@ -104,6 +104,7 @@ sequenceDiagram
     deactivate AI
     
     B->>B: Calculate Overall Score & Extract Filler Words
+    B->>B: Update Error History & Goal Progress
     B->>B: Generate PDF Report (ReportLab)
     B->>B: Save Session to SQLite
     B-->>F: Return Evaluation Result ID
@@ -114,22 +115,27 @@ sequenceDiagram
 
 <a id="features"></a>
 
-## 🌟 Key Features
+## 🌟 Key Features & Modules
 
 1. **Speech Practice Studio**
    - **Real-Time Audio Waveform**: HTML5 Canvas and Web Audio API display a glowing, dynamic waveform as you speak.
    - **Live Transcription**: Web Speech API provides real-time speech-to-text.
-   - **Topic Generator**: Randomly generated prompts across categories like Leadership, Technology, and Job Interviews.
+   - **Multi-Language Support**: Analyze speeches in multiple languages using AssemblyAI & Gemini AI.
 
-2. **10-Dimension AI Evaluation Engine**
+2. **Personalized Onboarding & Goals**
+   - **Onboarding Flow**: Set your coaching preferences, experience level, and practice goals.
+   - **Goal Tracking**: Create specific practice plans and monitor your consistency.
+
+3. **10-Dimension AI Evaluation Engine**
    - Evaluates performance on metrics like Pacing, Fluency, Grammar, Lexical Variety, and Vocal Confidence.
    - **Grammar Corrections**: Side-by-side tables display original phrases, recommended corrections, and coaching explanations.
 
-3. **Gamified Analytics Dashboard**
-   - Track your progress using **Chart.js** visuals (Radar Charts, Line Graphs, Pie Charts).
+4. **Granular Analytics & Progress Dashboards**
+   - Track your progress using **Chart.js** visuals with specialized views for **Daily, Weekly, and Monthly** progress.
+   - **Weakness Tracking**: View a dedicated Error History dashboard to identify recurring mistakes and track areas for improvement.
    - Unlock badges (e.g., *7-Day Streak, Grammar Master*) and build consistency.
 
-4. **Interactive AI Public Speaking Coach**
+5. **Interactive AI Public Speaking Coach**
    - A real-time conversational Q&A assistant to help with stage fright, vocal variety, and speech structuring.
 
 <a id="quick-start"></a>
@@ -155,7 +161,7 @@ GEMINI_API_KEY=your_google_gemini_api_key_here
 DJANGO_SECRET_KEY=your-secret-key
 DEBUG=True
 ```
-> **Note:** If `GEMINI_API_KEY` is not provided, SpeakPro AI uses an intelligent offline NLP fallback so you can test immediately.
+> **Note:** If `GEMINI_API_KEY` is not provided, the app uses an intelligent offline NLP fallback so you can test immediately.
 
 ### 3. Setup Database & Seed Data
 ```bash
@@ -180,14 +186,15 @@ All files, databases, media uploads, and ReportLab PDFs are contained inside the
 AI_Public_Speaking_Coach/
 ├── app/                           # Core Django App (Models, Views, Forms, API, Services)
 │   ├── management/commands/       # Automated database seeding command
-│   ├── services/                  # Business logic (Gemini AI, ReportLab, Analytics)
-│   ├── models.py                  # Database Schema
-│   └── views.py                   # HTML Controllers
+│   ├── migrations/                # Database migrations (including newly added models)
+│   ├── services/                  # Business logic (Gemini AI, Assembly AI, Analytics)
+│   ├── models.py                  # DB Schema (SpeechSession, PracticePlan, ErrorHistory)
+│   └── views.py                   # HTML Controllers for Dashboards & Analytics
 ├── config/                        # Django Project Configuration
 ├── database/                      # SQLite Database Directory (db.sqlite3)
 ├── uploads/                       # User recorded speech audio webm/wav files
 ├── reports/                       # Generated ReportLab PDF evaluation reports
-├── templates/                     # Modern Glassmorphic Dark Mode HTML Templates
+├── templates/                     # Glassmorphic HTML Templates (including goals & progress)
 ├── static/                        # Frontend CSS, JavaScript & Assets (Chart.js)
 └── requirements.txt               # Python Dependencies
 ```
@@ -195,4 +202,4 @@ AI_Public_Speaking_Coach/
 ## 📄 Privacy & Data Storage
 
 - **Local First**: Audio recordings (`/uploads/`) and PDF reports (`/reports/`) are stored completely locally on your file system.
-- **Transcripts**: Evaluated securely using Google Gemini API (if configured) without retaining data permanently on external servers.
+- **Transcripts**: Evaluated securely using Google Gemini API and AssemblyAI (if configured) without retaining data permanently on external servers.
