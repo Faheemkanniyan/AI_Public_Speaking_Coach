@@ -12,7 +12,7 @@ def global_settings(request):
         except Exception:
             pass
     return {
-        "APP_NAME": "SpeakPro AI",
+        "APP_NAME": "Public Specking Coach",
         "APP_TAGLINE": "AI Public Speaking Coach",
         "USER_DARK_MODE": is_dark_mode,
     }
