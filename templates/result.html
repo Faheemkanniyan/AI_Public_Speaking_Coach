@@ -160,11 +160,76 @@
     </div>
   </div>
 
+  {% if session.visual_presence %}
+  <!-- NEW: Visual Presence Metrics -->
+  <div class="glass-card p-4 mb-4" style="border: 1px solid #4a90e2 !important;">
+    <h5 class="fw-bold mb-3" style="color: #4a90e2;"><i class="bi bi-person-video2"></i> Visual Presence Analytics</h5>
+    <div class="row g-3 text-center">
+      <div class="col-6 col-md-3">
+        <div class="p-3 rounded-3" style="background: rgba(74, 144, 226, 0.1);">
+          <div class="display-6 fw-bold" style="color: #4a90e2;">{{ session.visual_presence.eye_contact_pct }}%</div>
+          <small class="text-secondary fw-bold text-uppercase">Eye Contact</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-3 rounded-3" style="background: rgba(74, 144, 226, 0.1);">
+          <div class="display-6 fw-bold" style="color: #4a90e2;">{{ session.visual_presence.posture_score }}/100</div>
+          <small class="text-secondary fw-bold text-uppercase">Posture</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-3 rounded-3" style="background: rgba(74, 144, 226, 0.1);">
+          <div class="display-6 fw-bold" style="color: #4a90e2;">{{ session.visual_presence.expression_variety_score }}/100</div>
+          <small class="text-secondary fw-bold text-uppercase">Expressions</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-3 rounded-3" style="background: rgba(74, 144, 226, 0.1);">
+          <div class="display-6 fw-bold" style="color: #4a90e2;">{{ session.visual_presence.face_detected_pct }}%</div>
+          <small class="text-secondary fw-bold text-uppercase">Face Tracked</small>
+        </div>
+      </div>
+    </div>
+    
+    {% if session.visual_presence.integrity_flags_count > 0 %}
+    <div class="mt-4 pt-4 border-top border-secondary text-start">
+      <h6 class="fw-bold mb-3 text-warning"><i class="bi bi-shield-exclamation"></i> Proctoring & Integrity Notes</h6>
+      <ul class="list-unstyled mb-0 small">
+        {% if session.visual_presence.face_count_violations|length > 0 %}
+        <li class="mb-2 text-danger">
+          <i class="bi bi-people-fill me-2"></i> Multiple faces detected {{ session.visual_presence.face_count_violations|length }} times. Ensure you are alone during practice.
+        </li>
+        {% endif %}
+        {% if session.visual_presence.gaze_away_events|length > 0 %}
+        <li class="mb-0 text-warning">
+          <i class="bi bi-eye-slash-fill me-2"></i> Looked away from camera {{ session.visual_presence.gaze_away_events|length }} times. Try to maintain eye contact.
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+    {% else %}
+    <div class="mt-4 pt-4 border-top border-secondary text-start">
+      <div class="small text-success fw-bold">
+        <i class="bi bi-shield-check me-2"></i> Proctoring & Integrity: All clear. Good focus!
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- 3. Executive AI Summary -->
-  <div class="glass-card p-4 mb-4 border-success-subtle">
-    <div class="d-flex align-items-center gap-2 text-neon-green fw-bold mb-2">
-      <i class="bi bi-robot fs-5"></i>
-      <span>EXECUTIVE AI COACH SUMMARY</span>
+  <div class="glass-card p-4 mb-4 border-success-subtle position-relative">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="d-flex align-items-center gap-2 text-neon-green fw-bold">
+        <i class="bi bi-robot fs-5"></i>
+        <span>EXECUTIVE AI COACH SUMMARY</span>
+      </div>
+      <div>
+        <button id="btnListenAI" class="btn btn-sm btn-outline-success rounded-pill px-3" onclick="generateTTS({{ session.id }})">
+          <i class="bi bi-volume-up-fill me-1"></i> Listen to AI Feedback
+        </button>
+        <audio id="audioFeedback" class="d-none" controls></audio>
+      </div>
     </div>
     <p class="text-light mb-0 lh-lg">{{ report.summary_feedback }}</p>
   </div>
@@ -266,6 +331,10 @@
         <span class="badge bg-dark border {% if fa.filler_count > 3 %}border-warning text-warning{% else %}border-success text-neon-green{% endif %} px-3 py-2 rounded-pill">
           <i class="bi bi-exclamation-circle me-1"></i> Filler Words: <strong>{{ fa.filler_count }}</strong> ({{ fa.filler_percentage }}%)
         </span>
+        <span class="badge bg-dark border {% if report.speaking_pace_wpm < 110 %}border-warning text-warning{% elif report.speaking_pace_wpm > 150 %}border-warning text-warning{% else %}border-success text-neon-green{% endif %} px-3 py-2 rounded-pill" title="Target: 110-150 WPM">
+          <i class="bi bi-speedometer2 me-1"></i> Pace: <strong>{{ report.speaking_pace_wpm }} WPM</strong> 
+          {% if report.speaking_pace_wpm < 110 %}(Slow){% elif report.speaking_pace_wpm > 150 %}(Fast){% else %}(Good){% endif %}
+        </span>
       </div>
     </div>
 
@@ -307,4 +376,70 @@
   {% endwith %}
 
 </div>
+
+<script>
+  function generateTTS(sessionId) {
+    const btn = document.getElementById('btnListenAI');
+    const audio = document.getElementById('audioFeedback');
+    
+    // Prevent multiple clicks
+    if (btn.disabled) return;
+    
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Generating...';
+
+    // Get CSRF token
+    const csrfToken = document.cookie.split('; ').find(row => row.startsWith('csrftoken=')).split('=')[1];
+
+    fetch(`/api/speech/generate-tts/${sessionId}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success' && data.audio_url) {
+        audio.src = data.audio_url;
+        audio.classList.remove('d-none');
+        audio.classList.add('d-block', 'mt-2', 'w-100');
+        
+        btn.innerHTML = '<i class="bi bi-play-circle-fill me-1"></i> Play AI Feedback';
+        btn.classList.replace('btn-outline-success', 'btn-success');
+        
+        btn.onclick = () => {
+          if (audio.paused) {
+            audio.play();
+            btn.innerHTML = '<i class="bi bi-pause-circle-fill me-1"></i> Pause AI Feedback';
+          } else {
+            audio.pause();
+            btn.innerHTML = '<i class="bi bi-play-circle-fill me-1"></i> Play AI Feedback';
+          }
+        };
+
+        // Auto play
+        audio.play();
+        btn.innerHTML = '<i class="bi bi-pause-circle-fill me-1"></i> Pause AI Feedback';
+        
+        // Handle audio end
+        audio.onended = () => {
+          btn.innerHTML = '<i class="bi bi-play-circle-fill me-1"></i> Play AI Feedback';
+        };
+
+      } else {
+        alert("Failed to generate AI feedback: " + (data.message || "Unknown error"));
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert("Error generating TTS.");
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    });
+  }
+</script>
 {% endblock %}

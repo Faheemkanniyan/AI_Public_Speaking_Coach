@@ -24,7 +24,7 @@ class AICoachService:
         if self.api_key and GENAI_AVAILABLE:
             try:
                 genai.configure(api_key=self.api_key)
-                self.model = genai.GenerativeModel("gemini-1.5-flash")
+                self.model = genai.GenerativeModel("gemini-3.6-flash")
             except Exception:
                 self.model = None
         else:

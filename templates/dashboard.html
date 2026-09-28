@@ -150,6 +150,67 @@
     </div>
   </div>
 
+  <!-- Before vs After Comparison -->
+  {% if first_session and latest_session and first_session.report and latest_session.report %}
+  <div class="row g-4 mb-4">
+    <div class="col-12">
+      <div class="glass-card p-4 position-relative overflow-hidden" style="border-left: 4px solid #6c757d;">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h5 class="fw-bold mb-0" style="color: #1C1B18;"><i class="bi bi-arrow-left-right me-2 text-secondary"></i>Before vs After Comparison</h5>
+          <span class="badge bg-secondary-subtle text-secondary border border-secondary px-3 py-1 rounded-pill">Progress Tracking</span>
+        </div>
+        
+        <div class="row align-items-center">
+          <!-- Before (First Session) -->
+          <div class="col-md-5 text-center">
+            <h6 class="text-muted text-uppercase small fw-bold mb-3">Your First Speech</h6>
+            <div class="p-3 bg-dark bg-opacity-10 rounded-4 border border-secondary">
+              <div class="display-4 fw-bold text-secondary mb-1">{{ first_session.report.overall_score }}</div>
+              <div class="small text-muted mb-3">Overall Score</div>
+              <div class="d-flex justify-content-around small">
+                <div>
+                  <div class="fw-bold text-danger">{{ first_session.report.filler_analysis.filler_count }}</div>
+                  <div class="text-muted" style="font-size: 0.75rem;">Fillers</div>
+                </div>
+                <div>
+                  <div class="fw-bold text-warning">{{ first_session.report.speaking_pace_wpm }}</div>
+                  <div class="text-muted" style="font-size: 0.75rem;">WPM</div>
+                </div>
+              </div>
+            </div>
+            <p class="small text-muted mt-2 mb-0">{{ first_session.created_at|date:"M d, Y" }}</p>
+          </div>
+          
+          <!-- Arrow -->
+          <div class="col-md-2 text-center py-3 py-md-0">
+            <i class="bi bi-arrow-right-circle-fill fs-1 text-neon-green opacity-75"></i>
+          </div>
+          
+          <!-- After (Latest Session) -->
+          <div class="col-md-5 text-center">
+            <h6 class="text-neon-green text-uppercase small fw-bold mb-3">Your Latest Speech</h6>
+            <div class="p-3 bg-success bg-opacity-10 rounded-4 border border-success" style="box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);">
+              <div class="display-4 fw-bold text-neon-green mb-1">{{ latest_session.report.overall_score }}</div>
+              <div class="small text-success mb-3">Overall Score</div>
+              <div class="d-flex justify-content-around small">
+                <div>
+                  <div class="fw-bold {% if latest_session.report.filler_analysis.filler_count < first_session.report.filler_analysis.filler_count %}text-success{% else %}text-danger{% endif %}">{{ latest_session.report.filler_analysis.filler_count }}</div>
+                  <div class="text-success" style="font-size: 0.75rem;">Fillers</div>
+                </div>
+                <div>
+                  <div class="fw-bold text-info">{{ latest_session.report.speaking_pace_wpm }}</div>
+                  <div class="text-success" style="font-size: 0.75rem;">WPM</div>
+                </div>
+              </div>
+            </div>
+            <p class="small text-success mt-2 mb-0">{{ latest_session.created_at|date:"M d, Y" }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- 3. Chart.js Graphs (Radar & Line) -->
   <div class="row g-4 mb-4">
     <!-- Radar Chart: Speaking Competency -->
@@ -174,6 +235,30 @@
         </div>
         <div style="height: 300px;">
           <canvas id="lineChartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interview Preparation Card -->
+  <div class="row g-4 mb-4">
+    <div class="col-12">
+      <div class="glass-card p-4 position-relative overflow-hidden" style="border-left: 4px solid #9b59b6;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0" style="color: #1C1B18;"><i class="bi bi-person-video2 me-2" style="color: #9b59b6;"></i>Interview Preparation</h5>
+          <span class="badge bg-purple-subtle text-purple border border-purple px-3 py-1 rounded-pill" style="color: #9b59b6; background-color: rgba(155, 89, 182, 0.1); border-color: #9b59b6;">New</span>
+        </div>
+        <p class="text-secondary mb-4">Practice technical and HR interviews with an AI interviewer and receive personalized feedback.</p>
+        <div class="d-flex gap-3 flex-wrap">
+          <a href="{% url 'interview_setup' %}" class="btn rounded-pill px-4 text-white" style="background-color: #9b59b6; border-color: #9b59b6;">
+            <i class="bi bi-mic-fill me-2"></i> Start New Interview
+          </a>
+          <a href="{% url 'interview_history' %}" class="btn rounded-pill px-4" style="color: #9b59b6; border-color: #9b59b6;">
+            <i class="bi bi-clock-history me-2"></i> Interview History
+          </a>
+          <a href="{% url 'interview_performance' %}" class="btn rounded-pill px-4" style="color: #9b59b6; border-color: #9b59b6;">
+            <i class="bi bi-graph-up me-2"></i> Performance
+          </a>
         </div>
       </div>
     </div>

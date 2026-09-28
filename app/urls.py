@@ -3,7 +3,7 @@ URL routing for SpeakPro AI web application.
 """
 
 from django.urls import path
-from . import views, api_views
+from . import views, api_views, interview_views
 
 urlpatterns = [
     # Core pages
@@ -31,9 +31,19 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('forgot-password/', views.forgot_password_view, name='forgot_password'),
 
+    # Interview Preparation
+    path('interview/', interview_views.interview_setup_view, name='interview_setup'),
+    path('interview/<int:session_id>/question/<int:question_id>/', interview_views.interview_question_view, name='interview_question'),
+    path('interview/<int:session_id>/question/<int:question_id>/feedback/', interview_views.interview_feedback_view, name='interview_feedback'),
+    path('interview/<int:session_id>/question/<int:question_id>/retry-feedback/', interview_views.interview_retry_feedback_view, name='interview_retry_feedback'),
+    path('interview/<int:session_id>/report/', interview_views.interview_report_view, name='interview_report'),
+    path('interview/history/', interview_views.interview_history_view, name='interview_history'),
+    path('interview/performance/', interview_views.interview_performance_view, name='interview_performance'),
+
     # REST API endpoints
     path('api/topics/random/', api_views.api_random_topic, name='api_random_topic'),
     path('api/speech/analyze/', api_views.api_speech_analyze, name='api_speech_analyze'),
+    path('api/speech/generate-tts/<int:session_id>/', api_views.api_generate_tts, name='api_generate_tts'),
     path('api/coach/chat/', api_views.api_coach_chat, name='api_coach_chat'),
     path('api/analytics/data/', api_views.api_analytics_data, name='api_analytics_data'),
 ]

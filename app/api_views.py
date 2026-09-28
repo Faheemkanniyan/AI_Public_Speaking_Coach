@@ -24,9 +24,14 @@ def api_random_topic(request):
     Returns a random speaking topic, optionally filtered by category.
     """
     category = request.GET.get("category", "")
+    difficulty = request.GET.get("difficulty", "")
     topics = Topic.objects.all()
+    
     if category and category != "all":
         topics = topics.filter(category=category)
+        
+    if difficulty:
+        topics = topics.filter(difficulty__iexact=difficulty)
 
     if not topics.exists():
         topics = Topic.objects.all()
@@ -72,6 +77,8 @@ def api_speech_analyze(request):
                 "message": "Speech transcript cannot be empty. Please speak or record before analyzing."
             }, status=400)
 
+        visual_metrics = request.POST.get("visual_metrics", None)
+
         speech_service = SpeechService()
         session, report = speech_service.process_speech_session(
             user=request.user,
@@ -81,6 +88,7 @@ def api_speech_analyze(request):
             audio_file=audio_file,
             duration_seconds=duration_seconds,
             language=language,
+            visual_metrics_raw=visual_metrics
         )
 
         return JsonResponse({
@@ -129,3 +137,45 @@ def api_analytics_data(request):
     service = AnalyticsService()
     data = service.get_user_charts_data(request.user)
     return JsonResponse({"status": "success", "charts": data})
+
+@require_POST
+@login_required
+def api_generate_tts(request, session_id):
+    """
+    POST endpoint to generate TTS feedback for a session.
+    """
+    try:
+        from django.shortcuts import get_object_or_404
+        from .services.tts_service import TTSService
+        
+        session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
+        report = session.report
+        
+        if report.tts_audio_path:
+            return JsonResponse({"status": "success", "audio_url": report.tts_audio_path})
+            
+        # Construct summary feedback text for TTS
+        tts_text = f"Here is your feedback. Overall Score: {report.overall_score} out of 100. "
+        
+        wpm = report.speaking_pace_wpm
+        if wpm < 110:
+            tts_text += "Your pace was a bit slow, try to speak a little faster next time. "
+        elif wpm > 150:
+            tts_text += "Your pace was a bit fast, try to slow down and articulate clearly. "
+        else:
+            tts_text += "Your pace was perfect. "
+            
+        tts_text += report.summary_feedback
+        
+        tts_service = TTSService()
+        audio_url = tts_service.generate_feedback_audio(tts_text, session_id)
+        
+        if audio_url:
+            report.tts_audio_path = audio_url
+            report.save()
+            return JsonResponse({"status": "success", "audio_url": audio_url})
+        else:
+            return JsonResponse({"status": "error", "message": "Failed to generate TTS audio."}, status=500)
+            
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)

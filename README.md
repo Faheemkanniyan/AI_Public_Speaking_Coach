@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1 align="center">Public Specking Coach (formerly SpeakPro AI)</h1>
+<h1 align="center">Public Speaking Coach (formerly SpeakPro AI)</h1>
 
 **The Enterprise-Grade AI-Powered Public Speaking Coach**
 
@@ -16,13 +16,13 @@
 
 ---
 
-**Public Specking Coach** is a modern web application built with Python, Django 5, and Google Gemini AI. It acts as your personal speaking coach, analyzing your speech across 10 different metrics, highlighting grammatical errors, and providing executive actionable suggestions. With a stunning Glassmorphic Dark Mode UI/UX, practicing your speeches has never looked or felt better.
+**Public Speaking Coach** is a modern web application built with Python, Django 5, and Google Gemini AI. It acts as your personal speaking coach, analyzing your speech across 10 different metrics, highlighting grammatical errors, and providing executive actionable suggestions. With a stunning Glassmorphic Dark Mode UI/UX, practicing your speeches has never looked or felt better.
 
 <a id="architecture"></a>
 
 ## 🏗️ Architecture & How It Works
 
-The platform keeps your audio and PDF data local while leveraging the power of Google Gemini AI for advanced speech evaluation. 
+The platform keeps your audio and PDF data local while leveraging the power of Google Gemini AI for advanced speech evaluation, AssemblyAI for precise transcriptions and filler word detection, and Supabase for syncing public user profiles and statistics. 
 
 ```mermaid
 graph TD
@@ -36,14 +36,15 @@ graph TD
     
     subgraph Backend [Django 5 Core]
         Django[Django Routing & Views]
-        SpeechSvc[Speech Service]
+        SpeechSvc[Speech Service & AssemblyAI]
         AISvc[Gemini AI / NLP Fallback]
         ReportSvc[ReportLab PDF Engine]
         Analytics[Analytics & Goal Tracking]
     end
     
-    subgraph Storage [Local File System]
+    subgraph Storage [Hybrid Storage]
         DB[(SQLite Database)]
+        Supabase[(Supabase Cloud Sync)]
         Uploads[Audio Uploads /uploads/]
         PDFs[PDF Reports /reports/]
     end
@@ -64,6 +65,7 @@ graph TD
     ReportSvc --> PDFs
     ReportSvc --> DB
     Analytics --> DB
+    Analytics -.-> Supabase
     
     SpeechSvc --> Uploads
 ```
@@ -117,32 +119,68 @@ sequenceDiagram
 
 ## 🌟 Key Features & Modules
 
-1. **Speech Practice Studio**
-   - **Real-Time Audio Waveform**: HTML5 Canvas and Web Audio API display a glowing, dynamic waveform as you speak.
-   - **Live Transcription**: Web Speech API provides real-time speech-to-text.
-   - **Multi-Language Support**: Analyze speeches in multiple languages using AssemblyAI & Gemini AI.
+### 1. Speech Practice Studio
+*Step onto the virtual stage.*
 
-2. **Personalized Onboarding & Goals**
-   - **Onboarding Flow**: Set your coaching preferences, experience level, and practice goals.
-   - **Goal Tracking**: Create specific practice plans and monitor your consistency.
+<div align="center">
+  <img src="base.png" alt="Speech Studio Dashboard" width="700"/>
+  <br/>
+  <i>(Experience our Glassmorphic Dark UI)</i>
+</div>
 
-3. **10-Dimension AI Evaluation Engine**
-   - Evaluates performance on metrics like Pacing, Fluency, Grammar, Lexical Variety, and Vocal Confidence.
-   - **Grammar Corrections**: Side-by-side tables display original phrases, recommended corrections, and coaching explanations.
+- **Real-Time Audio Waveform**: A dynamic, glowing waveform reacts as you speak using HTML5 Canvas.
+- **Live Transcription**: See your words appear instantly via Web Speech API.
 
-4. **Granular Analytics & Progress Dashboards**
-   - Track your progress using **Chart.js** visuals with specialized views for **Daily, Weekly, and Monthly** progress.
-   - **Weakness Tracking**: View a dedicated Error History dashboard to identify recurring mistakes and track areas for improvement.
-   - Unlock badges (e.g., *7-Day Streak, Grammar Master*) and build consistency.
+### 2. 10-Dimension AI Evaluation Engine
+*We don't just tell you to improve; we show you exactly where and how.*
 
-5. **Interactive AI Public Speaking Coach**
-   - A real-time conversational Q&A assistant to help with stage fright, vocal variety, and speech structuring.
+| Dimension | What We Measure | AI Feedback Example |
+| :--- | :--- | :--- |
+| ⏱️ **Pacing** | Words per minute | *"165 WPM. Try slowing down during your main arguments."* |
+| 🗣️ **Fluency** | Filler words & pauses | *"You used 'um' 12 times. Pause silently instead."* |
+| 🎭 **Vocal Confidence** | Tone and assertiveness | *"Strong opening, but your volume dropped at the end."* |
+| 📚 **Lexical Variety** | Vocabulary richness | *"You repeated 'good' 5 times. Try 'excellent' or 'superb'."* |
+
+**Actionable Grammar Corrections:**
+> ❌ **You said:** "I goes to the store yesterday for buy apples."
+> ✅ **We suggest:** "I went to the store yesterday to buy apples."
+> 💡 **Coach Note:** Watch your past tense verbs and infinitive usage.
+
+### 3. Granular Analytics & Gamification
+*Track your consistency and watch your skills grow over time.*
+
+- 📈 **Visual Progress**: Daily, weekly, and monthly Chart.js dashboards.
+- 🎯 **Weakness Tracking**: Dedicated error history to spot recurring mistakes.
+- 🏅 **Badges & Streaks**: Earn achievements like *7-Day Streak* or *Grammar Master*.
+
+### 4. Interactive Q&A Coach
+*Got stage fright? Just ask the AI coach.*
+> **User:** *"I'm nervous about my upcoming pitch."*
+> **AI Coach:** *"Let's try a 4-7-8 breathing exercise. Also, remember to open with your strongest point to build early confidence..."*
+
+### 5. AI Mock Interviews (New)
+*Nail your next job interview with domain-specific practice.*
+- **Customized Sessions**: Generate technical, HR, or behavioral questions based on your domain, technology, and difficulty. Smart padding guarantees 100% unique questions every time.
+- **Deep AI Evaluation**: Get scored on relevance, technical accuracy, completeness, structure, clarity, grammar, pace, and filler words.
+- **Intelligent Offline NLP Fallback**: If you hit Google Gemini API rate limits (Quota Exceeded 429) or disconnect, the system seamlessly transitions to an offline Keyword-Matching Evaluation Engine to grade your answers locally, so you are never blocked from practicing!
+- **Skill Gap Analysis**: Track your performance across different domains over time with detailed dashboards.
+- **AssemblyAI Integration**: Highly accurate transcription and precise filler word detection.
+
+### 6. Visual Presence & Webcam Analysis (New)
+*Ensure your body language is as strong as your voice.*
+- **Live Video Tracking**: Connects to your webcam to monitor visual presence and face alignment in real-time.
+- **Distraction & Focus Detection**: Automatically flags if multiple faces appear or if no face is detected, helping you maintain focus and professional presence.
+
+### 7. AI Audio Feedback (Text-to-Speech)
+*Listen to your feedback on the go.*
+- **Synthesized Coach Audio**: Converts your AI-generated evaluations into natural-sounding audio reports using TTS, so you can listen and learn without reading.
 
 <a id="quick-start"></a>
 
 ## 🚀 Quick Start & Installation
 
 Requirements: Python 3.11+, Windows/macOS/Linux.
+*(Optional: Supabase for public profiles and AssemblyAI for advanced transcription).*
 
 ### 1. Activate Environment
 Ensure you are in the project root (`D:\AI_Public_Speaking_Coach\`) and activate the virtual environment:
@@ -161,7 +199,7 @@ GEMINI_API_KEY=your_google_gemini_api_key_here
 DJANGO_SECRET_KEY=your-secret-key
 DEBUG=True
 ```
-> **Note:** If `GEMINI_API_KEY` is not provided, the app uses an intelligent offline NLP fallback so you can test immediately.
+> **Note:** The Django server now supports hot-reloading `GEMINI_API_KEY`. If you change your key in `.env` while the server is running, the app will instantly update! If no key is provided (or if your quota runs out), the app gracefully defaults to the offline NLP evaluation engine.
 
 ### 3. Setup Database & Seed Data
 ```bash

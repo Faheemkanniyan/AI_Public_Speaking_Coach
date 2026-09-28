@@ -37,6 +37,27 @@
     </div>
   </div>
 
+  <!-- 1.5 Difficulty Selector -->
+  <div class="mb-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+      <small class="fw-bold text-uppercase" style="color: #2E4637; letter-spacing: 0.5px;">
+        <i class="bi bi-bar-chart-fill me-1"></i> Choose Topic Difficulty
+      </small>
+      <span class="small" style="color: #6A665E;">Filters the roulette prompts based on your experience</span>
+    </div>
+    <div id="difficultyTabsBar" class="d-flex flex-wrap gap-2">
+      <button type="button" class="btn btn-sm btn-outline-safe difficulty-pill-btn" data-difficulty="Beginner">
+        🟢 Beginner
+      </button>
+      <button type="button" class="btn btn-sm btn-safe-space difficulty-pill-btn active" data-difficulty="Intermediate">
+        🟡 Intermediate
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-safe difficulty-pill-btn" data-difficulty="Advanced">
+        🔴 Advanced
+      </button>
+    </div>
+  </div>
+
   <!-- 2. Safe Space Category Filter Pills Bar -->
   <div class="mb-4">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
@@ -144,6 +165,23 @@
     <!-- Live HTML5 Canvas Waveform Visualizer -->
     <div class="mb-4 position-relative">
       <canvas id="waveCanvas" width="800" height="120" class="w-100 rounded-3" style="background-color: #FBF9F5; border: 1px solid #EAE5DE; height: 120px;"></canvas>
+    </div>
+
+    <!-- Webcam Preview (Visual Metrics) -->
+    <div class="mb-4 d-flex flex-column align-items-center">
+      <div class="position-relative bg-dark rounded-3 overflow-hidden shadow mb-3" style="width: 100%; max-width: 480px; aspect-ratio: 4/3;">
+        <video id="webcamPreview" autoplay muted playsinline class="w-100 h-100 object-fit-cover"></video>
+        <div id="webcamIndicator" class="position-absolute top-0 start-0 m-2">
+          <span class="badge bg-secondary"><i class="bi bi-camera-video-off"></i> Off</span>
+        </div>
+      </div>
+      <div class="text-center">
+        <h6 class="fw-bold mb-1" style="color: #1C1B18;"><i class="bi bi-person-video2"></i> Real-Time Proctoring & Visual Analytics</h6>
+        <p class="small mb-2 text-muted">Camera activates automatically to track eye contact and multiple faces. Processed 100% locally.</p>
+        <button id="btnEnableCamera" class="btn btn-sm btn-outline-safe rounded-pill px-3">
+          <i class="bi bi-camera-fill"></i> Test Camera
+        </button>
+      </div>
     </div>
 
     <!-- Recording Control Buttons -->
@@ -293,5 +331,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/recorder.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<script src="{% static 'js/webcam-analysis.js' %}?v=2"></script>
+<script src="{% static 'js/recorder.js' %}?v=2"></script>
 {% endblock %}

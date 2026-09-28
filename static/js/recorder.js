@@ -18,6 +18,7 @@ let elapsedSeconds = 0;
 let currentTopicId = null;
 let currentTopicTitle = "Describe your greatest personal or professional achievement and what it taught you about leadership.";
 let currentCategory = "general";
+let currentDifficulty = "Intermediate";
 
 // Default target speaking duration is 60 seconds (1 minute)
 window.selectedDurationSeconds = 60;
@@ -33,6 +34,10 @@ let totalPauseSeconds = 0;
 let isCurrentlyPaused = false;
 let pauseStartTime = 0;
 let pauseTrackerInterval = null;
+
+// Visual Presence Tracker
+let webcamAnalyzer = null;
+let visualMetricsData = null;
 
 /**
  * RICH CURATED SUBTOPICS LIBRARY FOR TOPIC ROULETTE EFFECT
@@ -268,6 +273,23 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // 1.5 Setup Difficulty Filter Pills
+  const difficultyBtns = document.querySelectorAll(".difficulty-pill-btn");
+  difficultyBtns.forEach(btn => {
+    btn.addEventListener("click", function () {
+      difficultyBtns.forEach(b => {
+        b.classList.remove("btn-safe-space", "active");
+        b.classList.add("btn-outline-safe");
+      });
+      this.classList.remove("btn-outline-safe");
+      this.classList.add("btn-safe-space", "active");
+
+      const difficulty = this.getAttribute("data-difficulty") || "Intermediate";
+      currentDifficulty = difficulty;
+      spinTopicRoulette(currentCategory);
+    });
+  });
+
   // 2. Setup Speech Duration Target Pills (30s, 60s, 120s)
   const durationBtns = document.querySelectorAll(".duration-pill-btn");
   durationBtns.forEach(btn => {
@@ -415,6 +437,12 @@ function spinTopicRoulette(category = "all") {
     available = activeLibrary[category] || activeLibrary.general;
   }
 
+  // Filter by difficulty
+  let filteredByDifficulty = available.filter(t => t.difficulty === currentDifficulty);
+  if (filteredByDifficulty.length > 0) {
+    available = filteredByDifficulty;
+  }
+
   // Pick the winning final topic
   const winningIndex = Math.floor(Math.random() * available.length);
   const winningTopic = available[winningIndex];
@@ -555,6 +583,34 @@ async function beginMicrophoneRecording() {
     // Start Web Speech API Transcription
     setupSpeechRecognition();
 
+    // Start Visual Presence Recording automatically
+    if (!webcamAnalyzer && window.WebcamAnalyzer && document.getElementById('webcamPreview')) {
+      const btnEnableCamera = document.getElementById('btnEnableCamera');
+      if (btnEnableCamera) {
+        btnEnableCamera.disabled = true;
+        btnEnableCamera.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Starting Camera...';
+      }
+      try {
+        webcamAnalyzer = new window.WebcamAnalyzer(
+          document.getElementById('webcamPreview'),
+          document.getElementById('webcamIndicator')
+        );
+        await webcamAnalyzer.initialize();
+        if (btnEnableCamera) {
+          btnEnableCamera.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> Camera Active';
+        }
+      } catch (err) {
+        console.error("Auto camera init failed:", err);
+        if (btnEnableCamera) {
+          btnEnableCamera.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger"></i> Failed';
+        }
+      }
+    }
+    
+    if (webcamAnalyzer) {
+      webcamAnalyzer.startRecording();
+    }
+
     if (btnStart) btnStart.classList.add("d-none");
     if (btnStop) {
       btnStop.classList.remove("d-none");
@@ -610,6 +666,13 @@ function stopRecording() {
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
   }
+  
+  if (webcamAnalyzer) {
+    const metrics = webcamAnalyzer.stopRecording();
+    if (metrics) {
+      visualMetricsData = metrics;
+    }
+  }
 
   if (btnStop) {
     btnStop.classList.add("d-none");
@@ -637,6 +700,7 @@ function resetRecording() {
   resetAcousticTelemetryDisplay();
   audioBlob = null;
   audioChunks = [];
+  visualMetricsData = null;
   const transcriptBox = document.getElementById("transcriptTextarea");
   if (transcriptBox) {
     transcriptBox.value = "";
@@ -665,17 +729,41 @@ function setupSpeechRecognition() {
   const transcriptBox = document.getElementById("transcriptTextarea");
   let finalTranscript = transcriptBox ? (transcriptBox.value || transcriptBox.innerText || "") : "";
 
-  function highlightFillers(text) {
+  function highlightErrors(text) {
     const fillers = ["um", "uh", "like", "you know", "literally", "basically", "so yeah"];
+    
+    // Basic grammar rules matching the backend NLP fallback
+    const grammarRules = [
+      { regex: /\b(how come|how comes)\b/gi, msg: "Informal syntax: use 'Why'" },
+      { regex: /\b(can able to|could able to)\b/gi, msg: "Redundant phrasing: use 'can' or 'able to'" },
+      { regex: /\b(will going to)\b/gi, msg: "Redundant future phrasing: use 'will' or 'going to'" },
+      { regex: /\b(discuss about)\b/gi, msg: "'Discuss' does not need 'about'" },
+      { regex: /\b(return back|revert back|reply back)\b/gi, msg: "Redundant 'back'" },
+      { regex: /\b(repeat again)\b/gi, msg: "Redundant 'again'" },
+      { regex: /\b(more better|more easier|more faster|most best)\b/gi, msg: "Avoid double comparative/superlative" },
+      { regex: /\b(did not|didn't)\s+(went|saw|knew|said|came|made|took|gave)\b/gi, msg: "Use base verb after 'did not'" },
+      { regex: /\b(he|she|it)\s+(go|do|have|know|make|take|say|want|need)\b/gi, msg: "Subject-verb agreement: use 3rd person singular verb" },
+      { regex: /\b(they|we|you|people)\s+(is|was|has)\b/gi, msg: "Subject-verb agreement: use plural verb" },
+    ];
+
     let highlighted = text;
-    let hasFiller = false;
+    let hasError = false;
+
+    // 1. Highlight grammar mistakes with a red wavy underline and tooltip
+    grammarRules.forEach(rule => {
+      if (rule.regex.test(highlighted)) hasError = true;
+      highlighted = highlighted.replace(rule.regex, `<span class="highlight-grammar text-danger fw-bold" style="text-decoration: underline wavy #ff4d4f 2px; cursor: help;" title="Grammar Correction: $& -> ${rule.msg}">$&</span>`);
+    });
+
+    // 2. Highlight fillers with a warning badge
     fillers.forEach(f => {
       const regex = new RegExp(`\\b${f}\\b`, 'gi');
-      if (regex.test(highlighted)) hasFiller = true;
-      highlighted = highlighted.replace(regex, `<span class="highlight-filler">$&</span>`);
+      if (regex.test(highlighted)) hasError = true;
+      highlighted = highlighted.replace(regex, `<span class="highlight-filler badge bg-warning-subtle text-warning border border-warning px-2 py-1 mx-1" title="Filler word detected">$&</span>`);
     });
+
     // Haptic feedback (Smartwatch / Apple Watch / Mobile)
-    if (hasFiller && navigator.vibrate) {
+    if (hasError && navigator.vibrate) {
       navigator.vibrate([100, 50, 100]);
     }
     return highlighted;
@@ -695,7 +783,7 @@ function setupSpeechRecognition() {
       if (transcriptBox.tagName.toLowerCase() === "textarea") {
         transcriptBox.value = combined;
       } else {
-        transcriptBox.innerHTML = highlightFillers(combined);
+        transcriptBox.innerHTML = highlightErrors(combined);
         // Teleprompter Auto-Scroll
         transcriptBox.scrollTop = transcriptBox.scrollHeight;
       }
@@ -704,6 +792,13 @@ function setupSpeechRecognition() {
 
   recognition.onerror = (event) => {
     console.warn("Speech recognition error:", event.error);
+  };
+
+  recognition.onend = () => {
+    // Restart recognition automatically if still recording
+    if (isRecording) {
+      try { recognition.start(); } catch(e) {}
+    }
   };
 
   try {
@@ -1109,6 +1204,9 @@ async function submitSpeechForAnalysis() {
   if (audioBlob) {
     formData.append("audio_file", audioBlob, "speech_recording.webm");
   }
+  if (visualMetricsData) {
+    formData.append("visual_metrics", JSON.stringify(visualMetricsData));
+  }
 
   try {
     const response = await fetch("/api/speech/analyze/", {
@@ -1312,11 +1410,36 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   };
-
   if (btnToggleSmileEffect) {
     btnToggleSmileEffect.addEventListener("click", () => {
       window.triggerAudienceSmileEffect(!isSmilingMode);
     });
   }
+  
+  const btnEnableCamera = document.getElementById('btnEnableCamera');
+  if (btnEnableCamera) {
+    const initCamera = async () => {
+      btnEnableCamera.disabled = true;
+      btnEnableCamera.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Loading FaceMesh...';
+      try {
+        if (!window.WebcamAnalyzer) {
+          throw new Error("WebcamAnalyzer not loaded");
+        }
+        webcamAnalyzer = new window.WebcamAnalyzer(
+          document.getElementById('webcamPreview'),
+          document.getElementById('webcamIndicator')
+        );
+        await webcamAnalyzer.initialize();
+        btnEnableCamera.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> Camera Active';
+      } catch (err) {
+        console.error("Camera init failed:", err);
+        btnEnableCamera.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger"></i> Failed';
+      }
+    };
+    btnEnableCamera.addEventListener('click', initCamera);
+    // Auto-start camera on page load
+    setTimeout(initCamera, 500);
+  }
 });
+
 

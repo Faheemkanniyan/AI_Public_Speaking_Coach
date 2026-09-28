@@ -69,6 +69,43 @@ class AnalyticsService:
             ],
         }
 
+        # Add Visual Presence line datasets if data exists
+        eye_contact_data = []
+        posture_data = []
+        has_visuals = False
+        
+        for r in recent_reports:
+            vp = getattr(r.session, 'visual_presence', None)
+            if vp:
+                has_visuals = True
+                eye_contact_data.append(vp.eye_contact_pct)
+                posture_data.append(vp.posture_score)
+            else:
+                eye_contact_data.append(None)
+                posture_data.append(None)
+                
+        if has_visuals:
+            line_chart["datasets"].append({
+                "label": "Eye Contact %",
+                "data": eye_contact_data,
+                "borderColor": "#4a90e2",
+                "backgroundColor": "transparent",
+                "borderDash": [5, 5],
+                "tension": 0.4,
+                "pointRadius": 4,
+                "spanGaps": True,
+            })
+            line_chart["datasets"].append({
+                "label": "Posture Score",
+                "data": posture_data,
+                "borderColor": "#9b59b6",
+                "backgroundColor": "transparent",
+                "borderDash": [5, 5],
+                "tension": 0.4,
+                "pointRadius": 4,
+                "spanGaps": True,
+            })
+
         # 3. Bar Chart (Category Comparison)
         bar_chart = {
             "labels": ["Grammar", "Vocabulary", "Confidence", "Fluency", "Communication", "Overall"],

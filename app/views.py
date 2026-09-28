@@ -209,6 +209,11 @@ def dashboard_view(request):
     except Exception as e:
         print(f"Error getting tomorrow focus: {e}")
 
+    # Before vs After calculation
+    all_sessions = SpeechSession.objects.filter(user=request.user).order_by("created_at")
+    first_session = all_sessions.first()
+    latest_session = all_sessions.last() if all_sessions.count() > 1 else None
+
     context = {
         "profile": profile,
         "stats": stats,
@@ -228,6 +233,8 @@ def dashboard_view(request):
         "unique_days_count": unique_days_count,
         
         "tomorrow_focus": tomorrow_focus,
+        "first_session": first_session,
+        "latest_session": latest_session,
     }
     return render(request, "dashboard.html", context)
 
@@ -342,11 +349,14 @@ def download_report_pdf(request, session_id):
         from .services.report_service import ReportService
         srv = ReportService()
         pdf_rel_path = srv.generate_pdf_report(report)
-        report.pdf_report = pdf_rel_path
-        report.save()
+        if pdf_rel_path:
+            report.pdf_report = pdf_rel_path
+            report.save()
+        else:
+            raise Http404("PDF report generation failed. Ensure reportlab is installed.")
 
     pdf_full_path = Path(settings.BASE_DIR) / pdf_rel_path
-    if not pdf_full_path.exists():
+    if not pdf_rel_path or not pdf_full_path.exists():
         raise Http404("PDF file not found on disk.")
 
     with open(pdf_full_path, "rb") as f:

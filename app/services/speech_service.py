@@ -39,11 +39,11 @@ class SpeechService:
 
         return f"uploads/{filename}"
 
-    def process_speech_session(self, user, topic_id, topic_title, transcript_text, audio_file=None, duration_seconds=60, language="en-US"):
+    def process_speech_session(self, user, topic_id, topic_title, transcript_text, audio_file=None, duration_seconds=60, language="en-US", visual_metrics_raw=None):
         """
         Creates a SpeechSession and executes AI speech analysis to generate a SpeechReport.
         """
-        from app.models import Topic, SpeechSession, SpeechReport, Score, UserProfile, Statistic
+        from app.models import Topic, SpeechSession, SpeechReport, Score, UserProfile, Statistic, VisualPresence
         import json
 
         topic = None
@@ -93,10 +93,28 @@ class SpeechService:
             session.audio_file = audio_path
             session.save()
 
+        # Parse and save visual metrics
+        visual_metrics = None
+        if visual_metrics_raw:
+            try:
+                visual_metrics = json.loads(visual_metrics_raw)
+                VisualPresence.objects.create(
+                    speech_session=session,
+                    eye_contact_pct=visual_metrics.get("eye_contact_pct", 0),
+                    expression_variety_score=visual_metrics.get("expression_variety_score", 0),
+                    posture_score=visual_metrics.get("posture_score", 0),
+                    face_detected_pct=visual_metrics.get("face_detected_pct", 0),
+                    gesture_activity_score=visual_metrics.get("gesture_activity_score")
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to save visual metrics: {e}")
+
         # Perform AI Speech Analysis
         from app.services.gemini_service import GeminiSpeechAnalyzer
         analyzer = GeminiSpeechAnalyzer()
-        ai_data = analyzer.analyze_speech(transcript_text, session.topic_title, duration_seconds=session.duration_seconds, language=language)
+        ai_data = analyzer.analyze_speech(transcript_text, session.topic_title, duration_seconds=session.duration_seconds, language=language, visual_metrics=visual_metrics)
+
 
         # Create SpeechReport
         report = SpeechReport.objects.create(

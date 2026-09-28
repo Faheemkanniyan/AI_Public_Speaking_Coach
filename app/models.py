@@ -101,6 +101,7 @@ class SpeechReport(models.Model):
     motivational_feedback = models.TextField(blank=True, default="Great effort! Keep practicing to elevate your speaking.")
     exercises_json = models.TextField(default="[]", help_text="JSON list of recommended practice exercises")
 
+    tts_audio_path = models.CharField(max_length=500, blank=True, null=True, help_text="Path to generated TTS feedback audio")
     pdf_report = models.CharField(max_length=500, blank=True, help_text="Relative or absolute path to generated PDF in reports/ dir")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -311,6 +312,85 @@ class ErrorHistory(models.Model):
         return f"{self.user.username} - {self.error_type} ({self.frequency}x)"
 
 
+class InterviewSession(models.Model):
+    """
+    Records an AI Interview Prep session.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="interview_sessions")
+    interview_type = models.CharField(max_length=50) # Technical, HR, Behavioral, Mixed
+    domain = models.CharField(max_length=100)
+    technology = models.CharField(max_length=100)
+    difficulty = models.CharField(max_length=20)
+    interview_language = models.CharField(max_length=50, default="English")
+    total_questions = models.IntegerField(default=5)
+    completed_questions = models.IntegerField(default=0)
+    final_score = models.FloatField(default=0.0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.interview_type} ({self.technology})"
+
+class InterviewQuestion(models.Model):
+    """
+    Individual question in an interview session.
+    """
+    session = models.ForeignKey(InterviewSession, on_delete=models.CASCADE, related_name="questions")
+    question_text = models.TextField()
+    question_number = models.IntegerField(default=1)
+    question_type = models.CharField(max_length=50, blank=True)
+    expected_points_json = models.TextField(default="[]")
+    ideal_answer = models.TextField(blank=True)
+    evaluation_criteria_json = models.TextField(default="[]")
+
+    def __str__(self):
+        return f"Q{self.question_number}: {self.question_text[:50]}..."
+
+    @property
+    def has_answer(self):
+        return hasattr(self, 'answer')
+
+class InterviewAnswer(models.Model):
+    """
+    User's voice answer to an interview question.
+    """
+    question = models.OneToOneField(InterviewQuestion, on_delete=models.CASCADE, related_name="answer")
+    audio_file = models.FileField(upload_to="interview_audio/", blank=True, null=True)
+    transcript = models.TextField(blank=True)
+    duration_seconds = models.IntegerField(default=0)
+    word_count = models.IntegerField(default=0)
+    filler_count = models.IntegerField(default=0)
+    speaking_rate = models.IntegerField(default=0)
+    score = models.FloatField(default=0.0)
+    answer_status = models.CharField(max_length=20, default="ANSWERED") # ANSWERED or NOT_ANSWERED
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Answer to {self.question}"
+
+class InterviewFeedback(models.Model):
+    """
+    AI's evaluation of the interview answer.
+    """
+    answer = models.OneToOneField(InterviewAnswer, on_delete=models.CASCADE, related_name="feedback")
+    evaluation_status = models.CharField(max_length=20, default="EVALUATED") # EVALUATED, FAILED, RETRYING
+    classification = models.CharField(max_length=50, default="Not Evaluated")
+    relevance_score = models.IntegerField(default=0)
+    technical_accuracy = models.IntegerField(default=0)
+    completeness_score = models.IntegerField(default=0)
+    structure_score = models.IntegerField(default=0)
+    clarity_score = models.IntegerField(default=0)
+    grammar_score = models.IntegerField(default=0)
+    feedback_text = models.TextField(blank=True)
+    missing_points_json = models.TextField(default="[]")
+    suggestions_json = models.TextField(default="[]")
+    correct_points_json = models.TextField(default="[]")
+    incorrect_points_json = models.TextField(default="[]")
+
+    def __str__(self):
+        return f"Feedback for Answer {self.answer.id}"
+
+
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     """
@@ -332,3 +412,47 @@ def save_user_profile(sender, instance, **kwargs):
         instance.coaching_preference.save()
     except Exception:
         pass
+
+
+class VisualPresence(models.Model):
+    """
+    Client-side visual metrics computed via local-first FaceMesh, capturing eye contact,
+    posture stability, and expression variety without transmitting raw video frames.
+    """
+    speech_session = models.OneToOneField(SpeechSession, on_delete=models.CASCADE, related_name="visual_presence", null=True, blank=True)
+    interview_answer = models.OneToOneField(InterviewAnswer, on_delete=models.CASCADE, related_name="visual_presence", null=True, blank=True)
+    
+    eye_contact_pct = models.IntegerField(default=0)
+    expression_variety_score = models.IntegerField(default=0)
+    posture_score = models.IntegerField(default=0)
+    face_detected_pct = models.IntegerField(default=0)
+    gesture_activity_score = models.IntegerField(null=True, blank=True)
+    
+    # Proctoring & Integrity Events
+    face_count_violations_json = models.TextField(default="[]", help_text="JSON list of {timestamp, duration} when >1 face was detected")
+    gaze_away_events_json = models.TextField(default="[]", help_text="JSON list of {timestamp, duration} when user looked away")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"VisualPresence for {self.speech_session or self.interview_answer}"
+
+    @property
+    def face_count_violations(self):
+        import json
+        try:
+            return json.loads(self.face_count_violations_json)
+        except:
+            return []
+
+    @property
+    def gaze_away_events(self):
+        import json
+        try:
+            return json.loads(self.gaze_away_events_json)
+        except:
+            return []
+            
+    @property
+    def integrity_flags_count(self):
+        return len(self.face_count_violations) + len(self.gaze_away_events)

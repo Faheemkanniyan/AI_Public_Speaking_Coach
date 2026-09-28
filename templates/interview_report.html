@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Interview Report — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+    <div>
+      <h1 class="fw-bold mb-1" style="color: #1C1B18;">
+        <i class="bi bi-file-earmark-bar-graph-fill me-2" style="color: #9b59b6;"></i>Interview Performance Report
+      </h1>
+      <p class="text-secondary small mb-0">{{ session.interview_type }} - {{ session.domain }} ({{ session.technology }})</p>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary rounded-pill px-4">
+      Back to Dashboard
+    </a>
+  </div>
+
+  <div class="row g-4 mb-5">
+    <div class="col-md-4">
+      <div class="glass-card p-4 text-center h-100 d-flex flex-column justify-content-center">
+        <h6 class="text-uppercase text-secondary fw-bold mb-3">Overall Score</h6>
+        <div class="display-1 fw-bold {% if score_percentage >= 80 %}text-success{% elif score_percentage >= 60 %}text-warning{% else %}text-danger{% endif %} mb-2">
+          {{ score_percentage }}
+        </div>
+        <span class="text-secondary">out of 100</span>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="glass-card p-4 h-100">
+        <h6 class="text-uppercase text-secondary fw-bold mb-4">Summary</h6>
+        
+        <div class="row text-center mb-4">
+          <div class="col-4 border-end">
+            <h3 class="fw-bold text-dark">{{ session.total_questions }}</h3>
+            <span class="text-secondary small">Total Questions</span>
+          </div>
+          <div class="col-4 border-end">
+            <h3 class="fw-bold text-dark">{{ session.difficulty }}</h3>
+            <span class="text-secondary small">Difficulty</span>
+          </div>
+          <div class="col-4">
+            <h3 class="fw-bold text-dark">{{ session.completed_questions }}</h3>
+            <span class="text-secondary small">Answered</span>
+          </div>
+        </div>
+
+        <div class="mt-4 text-center">
+          <a href="{% url 'interview_performance' %}" class="btn text-white rounded-pill px-4 me-2" style="background-color: #9b59b6;">
+            <i class="bi bi-graph-up me-2"></i> Skill Gap Analysis
+          </a>
+          <a href="{% url 'interview_setup' %}" class="btn btn-outline-secondary rounded-pill px-4">
+            Practice Again
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h4 class="fw-bold mb-3" style="color: #1C1B18;">Question Breakdown</h4>
+  
+  <div class="accordion" id="questionsAccordion">
+    {% for q in questions %}
+    <div class="accordion-item bg-transparent mb-3 border-0">
+      <h2 class="accordion-header" id="heading{{ q.id }}">
+        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} glass-card rounded-4" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ q.id }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ q.id }}" style="box-shadow: none;">
+          <div class="d-flex w-100 justify-content-between align-items-center me-3">
+            <span class="fw-bold text-dark">Q{{ q.question_number }}: {{ q.question_text }}</span>
+            {% if q.has_answer %}
+            <span class="badge {% if q.answer.score >= 80 %}bg-success{% elif q.answer.score >= 60 %}bg-warning{% else %}bg-danger{% endif %} rounded-pill">
+              Score: {{ q.answer.score }}
+            </span>
+            {% else %}
+            <span class="badge bg-secondary rounded-pill">Not Answered</span>
+            {% endif %}
+          </div>
+        </button>
+      </h2>
+      <div id="collapse{{ q.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %} mt-2" aria-labelledby="heading{{ q.id }}" data-bs-parent="#questionsAccordion">
+        <div class="accordion-body glass-card rounded-4 p-4">
+          {% if q.has_answer %}
+          <div class="mb-3">
+            <h6 class="fw-bold text-secondary">Your Transcript:</h6>
+            <p class="text-dark bg-light p-3 rounded">{{ q.answer.transcript }}</p>
+          </div>
+          
+          <div class="mb-3">
+            <h6 class="fw-bold text-secondary">AI Feedback:</h6>
+            <p class="text-dark">{{ q.answer.feedback.feedback_text }}</p>
+          </div>
+
+          <div class="text-end mt-3">
+            <a href="{% url 'interview_feedback' session.id q.id %}" class="btn btn-sm btn-outline-primary rounded-pill">
+              View Detailed Feedback <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </div>
+          {% else %}
+          <p class="text-muted text-center py-3">You skipped or did not answer this question.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -14,7 +14,7 @@ import random
 from django.conf import settings
 
 try:
-    import google.generativeai as genai
+    from google import genai
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
@@ -29,37 +29,39 @@ class GeminiSpeechAnalyzer:
         self.api_key = getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
         if self.api_key and GENAI_AVAILABLE:
             try:
-                genai.configure(api_key=self.api_key)
-                self.model = genai.GenerativeModel("gemini-1.5-flash")
+                self.client = genai.Client(api_key=self.api_key)
+                self.model_name = "gemini-3.8-flash"
             except Exception:
-                self.model = None
+                self.client = None
+                self.model_name = None
         else:
-            self.model = None
+            self.client = None
+            self.model_name = None
 
-    def analyze_speech(self, transcript: str, topic_title: str = "General Topic", duration_seconds: int = 60, language: str = "en-US") -> dict:
+    def analyze_speech(self, transcript: str, topic_title: str = "General Topic", duration_seconds: int = 60, language: str = "en-US", visual_metrics: dict = None) -> dict:
         """
-        Main entry point to evaluate a speech transcript against assigned topic, target duration, and language.
+        Main entry point to evaluate a speech transcript against assigned topic, target duration, language, and optional visual metrics.
         Returns a structured dictionary with scores and actionable feedback.
         """
         if not transcript or not transcript.strip():
             return self._empty_response()
 
         raw_data = None
-        if self.model and self.api_key:
+        if self.client and self.api_key:
             try:
-                raw_data = self._analyze_with_gemini(transcript, topic_title, duration_seconds, language)
+                raw_data = self._analyze_with_gemini(transcript, topic_title, duration_seconds, language, visual_metrics)
             except Exception as e:
                 # Fallback to intelligent NLP analysis if Gemini API fails
-                raw_data = self._fallback_nlp_analysis(transcript, topic_title, duration_seconds)
+                raw_data = self._fallback_nlp_analysis(transcript, topic_title, duration_seconds, language, visual_metrics)
         else:
-            raw_data = self._fallback_nlp_analysis(transcript, topic_title, duration_seconds, language)
+            raw_data = self._fallback_nlp_analysis(transcript, topic_title, duration_seconds, language, visual_metrics)
 
         # Apply strict universal evaluation, grammar checking, and score validation rules
         return self._apply_strict_speech_evaluation_rules(raw_data, transcript, topic_title, duration_seconds, language)
 
-    def _analyze_with_gemini(self, transcript: str, topic: str, duration_seconds: int = 60, language: str = "en-US") -> dict:
+    def _analyze_with_gemini(self, transcript: str, topic: str, duration_seconds: int = 60, language: str = "en-US", visual_metrics: dict = None) -> dict:
         """
-        Calls Google Gemini API with a structured prompt including topic relevance, target duration, and language.
+        Calls Google Gemini API with a structured prompt including topic relevance, target duration, language, and visual metrics.
         """
         lang_name = "Hindi (हिंदी)" if language == "hi-IN" else ("Malayalam (മലയാളം)" if language == "ml-IN" else "English")
         if language == "hi-IN":
@@ -69,13 +71,28 @@ class GeminiSpeechAnalyzer:
         else:
             expected_wpm = "120-150 WPM"
 
+        visual_context = ""
+        if visual_metrics:
+            visual_context = f"""
+        [VISUAL PRESENCE DATA INCLUDED - Evaluated Client-Side via FaceMesh]
+        - Eye Contact (Looking at camera): {visual_metrics.get('eye_contact_pct')}%
+        - Posture Stability Score: {visual_metrics.get('posture_score')}/100
+        - Expression Variety Score: {visual_metrics.get('expression_variety_score')}/100
+        - Face Detected during recording: {visual_metrics.get('face_detected_pct')}%
+        Note: You MUST evaluate this 11th dimension 'Presence & Body Language' and include specific feedback about their eye contact, posture, and expressions in the strengths, weaknesses, and motivational feedback.
+        """
+
         prompt = f"""
         You are an expert AI Public Speaking Coach and Executive Communications Judge.
         The speaker delivered their speech in {lang_name} (Language Code: {language}) on the assigned topic: "{topic}".
         The speaker chose a Target Speaking Duration of: {duration_seconds} seconds.
         The optimal pacing standard for {lang_name} is {expected_wpm}.
         
+        {visual_context}
+
         Transcript ({lang_name}):
+        "{transcript}"
+        
           CRITICAL EVALUATION & GRADING RULES (STRICT - DO NOT INFLATE SCORES):
         0. MINIMAL ATTEMPT / SINGLE WORD OR GREETINGS (< 5 words):
            - If the speaker only said 1 to 4 words (e.g. "hello", "hi", "test", "good morning"), YOU MUST assign an overall_score between 5 and 10 out of 100! All competency scores (grammar, vocabulary, confidence, fluency, communication) MUST ALSO be between 5 and 10!
@@ -132,7 +149,10 @@ class GeminiSpeechAnalyzer:
         - STRICTLY identify real sentence errors, grammar mistakes, repetitive words, filler phrases, or awkward syntax in their spoken transcript.
         - MIXED LANGUAGE RULE: If you detect words or sentences spoken in a language OTHER than {lang_name} (for example, Hindi or regional text mixed into an English speech), you MUST include them in the "mistakes" list. Set the "original" to the foreign text, the "correction" to the translated {lang_name} equivalent, and the "reason" to "Translated to the target language for professional consistency."
         """
-        response = self.model.generate_content(prompt)
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+        )
         text = response.text.strip()
         # Remove markdown fence if present
         if text.startswith("```json"):
@@ -144,7 +164,7 @@ class GeminiSpeechAnalyzer:
         data = json.loads(text)
         return self._sanitize_response(data)
 
-    def _fallback_nlp_analysis(self, transcript: str, topic: str, duration_seconds: int = 60, language: str = "en-US") -> dict:
+    def _fallback_nlp_analysis(self, transcript: str, topic: str, duration_seconds: int = 60, language: str = "en-US", visual_metrics: dict = None) -> dict:
         """
         Intelligent offline NLP evaluator that calculates authentic scores
         based on lexical diversity, filler words, sentence lengths, and structure.
@@ -406,6 +426,18 @@ class GeminiSpeechAnalyzer:
             "The Pause Challenge: Practice speaking for 2 minutes on a random topic, replacing every filler word with a 1-second silent pause.",
             "Vocabulary Upgrade: Take three common adjectives from your speech and replace them with stronger academic or professional synonyms."
         ]
+
+        if visual_metrics:
+            eye_contact = visual_metrics.get("eye_contact_pct", 0)
+            if eye_contact > 80:
+                strengths.append(f"Excellent eye contact ({eye_contact}%). You maintained strong audience connection.")
+            elif eye_contact < 50:
+                weaknesses.append(f"Low eye contact ({eye_contact}%). Try to look directly at the camera more often.")
+                suggestions.append("Practice delivering your speech without heavily relying on your notes to improve eye contact.")
+            
+            posture = visual_metrics.get("posture_score", 0)
+            if posture < 50:
+                weaknesses.append("High physical movement detected. Keep your posture stable and avoid drifting out of frame.")
 
         return {
             "overall_score": overall,

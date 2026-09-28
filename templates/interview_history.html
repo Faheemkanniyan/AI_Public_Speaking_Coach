@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Interview History — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-secondary">
+    <div>
+      <h1 class="fw-bold mb-1" style="color: #1C1B18;">
+        <i class="bi bi-clock-history me-2" style="color: #9b59b6;"></i>Interview History
+      </h1>
+      <p class="text-secondary small mb-0">Review your past interview sessions and track your progress.</p>
+    </div>
+    <a href="{% url 'interview_setup' %}" class="btn text-white rounded-pill px-4" style="background-color: #9b59b6;">
+      <i class="bi bi-plus-lg me-2"></i> New Interview
+    </a>
+  </div>
+
+  <div class="glass-card p-4">
+    {% if sessions %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="text-secondary small">
+          <tr>
+            <th>DATE</th>
+            <th>TYPE</th>
+            <th>DOMAIN / TECH</th>
+            <th>DIFFICULTY</th>
+            <th>SCORE</th>
+            <th class="text-end">ACTION</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for session in sessions %}
+          <tr>
+            <td class="text-dark fw-bold">{{ session.created_at|date:"d M Y" }}</td>
+            <td class="text-secondary">{{ session.interview_type }}</td>
+            <td>
+              <div class="text-dark fw-bold">{{ session.technology }}</div>
+              <small class="text-secondary">{{ session.domain }}</small>
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ session.difficulty }}</span>
+            </td>
+            <td>
+              <span class="badge {% if session.final_score >= 80 %}bg-success-subtle text-success border-success{% elif session.final_score >= 60 %}bg-warning-subtle text-warning border-warning{% else %}bg-danger-subtle text-danger border-danger{% endif %} border px-3 py-1 rounded-pill">
+                {{ session.final_score }}/100
+              </span>
+            </td>
+            <td class="text-end">
+              <a href="{% url 'interview_report' session.id %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                View Report
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <i class="bi bi-calendar-x text-secondary display-6 d-block mb-3"></i>
+      <p class="text-secondary mb-3">You haven't completed any interviews yet.</p>
+      <a href="{% url 'interview_setup' %}" class="btn text-white rounded-pill px-4" style="background-color: #9b59b6;">Start Your First Interview</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

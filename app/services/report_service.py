@@ -144,6 +144,32 @@ class ReportService:
                 elements.append(Paragraph(f"• {wk}", normal_style))
             elements.append(Spacer(1, 10))
 
+        # Visual Presence Analytics
+        if hasattr(report.session, 'visual_presence') and report.session.visual_presence:
+            vp = report.session.visual_presence
+            elements.append(Paragraph("Visual Presence Analytics", heading2))
+            vp_data = [
+                ["Metric", "Score", "Description"],
+                ["Eye Contact", f"{vp.eye_contact_pct}%", "Maintaining eye contact with the audience/camera."],
+                ["Posture", f"{vp.posture_score}/100", "Steadiness and professional posture."],
+                ["Expressions", f"{vp.expression_variety_score}/100", "Facial expression variety and engagement."],
+                ["Face Tracked", f"{vp.face_detected_pct}%", "Percentage of time face was clearly visible."],
+            ]
+            vp_table = Table(vp_data, colWidths=[130, 80, 300])
+            vp_table.setStyle(
+                TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E293B")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ])
+            )
+            elements.append(vp_table)
+            elements.append(Spacer(1, 15))
+
         # Grammar & Vocabulary Corrections
         mistakes = report.get_mistakes()
         if mistakes:

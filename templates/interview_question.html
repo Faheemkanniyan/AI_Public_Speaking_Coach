@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Interview Question {{ question.question_number }} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      
+      <!-- Interview Header Info -->
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <span class="badge bg-secondary-subtle text-secondary px-3 py-1 me-2">{{ session.interview_type }}</span>
+          <span class="badge bg-secondary-subtle text-secondary px-3 py-1 me-2">{{ session.domain }}</span>
+          <span class="badge bg-secondary-subtle text-secondary px-3 py-1">{{ session.technology }}</span>
+        </div>
+        <div class="text-secondary small fw-bold">
+          Difficulty: {{ session.difficulty }}
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      {% widthratio question.question_number session.total_questions 100 as progress_pct %}
+      <div class="progress mb-4" style="height: 10px;">
+        <div class="progress-bar" role="progressbar" style="background-color: #9b59b6;" aria-valuenow="{{ question.question_number }}" aria-valuemin="0" aria-valuemax="{{ session.total_questions }}"></div>
+        <script>document.currentScript.previousElementSibling.style.width = "{{ progress_pct }}%";</script>
+      </div>
+
+      <!-- Main Question Card -->
+      <div class="glass-card p-4 p-md-5 mb-4 text-center position-relative" style="border-top: 5px solid #9b59b6;">
+        <div class="mb-4">
+          <span class="text-uppercase fw-bold" style="color: #9b59b6; letter-spacing: 1px;">AI INTERVIEWER</span>
+          <br>
+          <span class="text-secondary small">Question {{ question.question_number }} / {{ session.total_questions }}</span>
+        </div>
+
+        <h3 class="fw-bold mb-5 position-relative" style="color: #1C1B18; line-height: 1.5;">
+          "{{ question.question_text }}"
+          <button id="replayQuestionBtn" class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 translate-middle-y rounded-circle" style="width: 32px; height: 32px; padding: 0;" title="Replay Question">
+            <i class="bi bi-volume-up-fill"></i>
+          </button>
+        </h3>
+
+        <!-- Webcam Preview (Visual Metrics) -->
+        <div class="mb-4 d-flex flex-column align-items-center">
+          <div class="position-relative bg-dark rounded-3 overflow-hidden shadow mb-3" style="width: 100%; max-width: 480px; aspect-ratio: 4/3;">
+            <video id="webcamPreview" autoplay muted playsinline class="w-100 h-100 object-fit-cover"></video>
+            <div id="webcamIndicator" class="position-absolute top-0 start-0 m-2">
+              <span class="badge bg-secondary"><i class="bi bi-camera-video-off"></i> Off</span>
+            </div>
+          </div>
+          <div class="text-center">
+            <h6 class="fw-bold mb-1" style="color: #1C1B18;"><i class="bi bi-person-video2"></i> Real-Time Proctoring & Visual Analytics</h6>
+            <p class="small mb-2 text-muted">Camera activates automatically to track eye contact and multiple faces. Processed 100% locally.</p>
+            <button id="btnEnableCamera" class="btn btn-sm btn-outline-safe rounded-pill px-3">
+              <i class="bi bi-camera-fill"></i> Test Camera
+            </button>
+          </div>
+        </div>
+
+        <!-- Recording Interface -->
+        <div id="recordingInterface" class="mt-5">
+          <div class="d-flex justify-content-center gap-3 mb-4">
+            <button id="startBtn" class="btn btn-lg text-white rounded-pill px-4" style="background-color: #9b59b6;">
+              <i class="bi bi-mic-fill me-2"></i> Start Answer
+            </button>
+            <button id="stopBtn" class="btn btn-lg btn-danger rounded-pill px-4 d-none">
+              <i class="bi bi-stop-circle-fill me-2"></i> Stop Answer
+            </button>
+          </div>
+          
+          <div id="recordingIndicator" class="d-none mb-3">
+            <div class="spinner-grow text-danger spinner-grow-sm" role="status"></div>
+            <span class="text-danger fw-bold ms-2">Recording... <span id="timeDisplay">00:00</span></span>
+          </div>
+
+          <form id="answerForm" method="POST" action="{% url 'interview_question' session.id question.id %}" enctype="multipart/form-data" class="d-none mt-4 text-start">
+            {% csrf_token %}
+            <h5 class="fw-bold" style="color: #1C1B18;">Your Answer Transcript</h5>
+            <p class="text-secondary small">You can edit the transcript if the speech-to-text was inaccurate.</p>
+            <textarea name="transcript" id="transcriptArea" class="form-control mb-3" rows="5" required></textarea>
+            <input type="hidden" name="duration" id="durationInput" value="0">
+            <input type="file" name="audio_file" id="audioFileInput" class="d-none">
+            <input type="hidden" name="visual_metrics" id="visualMetricsInput" value="">
+            
+            <div class="d-flex justify-content-between align-items-center">
+              <button type="button" id="retryBtn" class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="bi bi-arrow-counterclockwise me-2"></i> Retry
+              </button>
+              <button type="submit" id="submitBtn" class="btn text-white rounded-pill px-4" style="background-color: #2E4637;">
+                <i class="bi bi-check-circle-fill me-2"></i> Submit Answer
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<script src="{% static 'js/webcam-analysis.js' %}"></script>
+
+<script>
+  let mediaRecorder;
+  let audioChunks = [];
+  let startTime;
+  let timerInterval;
+  let webcamAnalyzer = null;
+
+  
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const recordingIndicator = document.getElementById('recordingIndicator');
+  const timeDisplay = document.getElementById('timeDisplay');
+  const answerForm = document.getElementById('answerForm');
+  const transcriptArea = document.getElementById('transcriptArea');
+  const durationInput = document.getElementById('durationInput');
+  const retryBtn = document.getElementById('retryBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  const audioFileInput = document.getElementById('audioFileInput');
+  
+  const visualMetricsInput = document.getElementById('visualMetricsInput');
+  const btnEnableCamera = document.getElementById('btnEnableCamera');
+  
+  if (btnEnableCamera) {
+    btnEnableCamera.addEventListener('click', async () => {
+      btnEnableCamera.disabled = true;
+      btnEnableCamera.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Loading FaceMesh...';
+      try {
+        if (!window.WebcamAnalyzer) {
+          throw new Error("WebcamAnalyzer not loaded");
+        }
+        webcamAnalyzer = new window.WebcamAnalyzer(
+          document.getElementById('webcamPreview'),
+          document.getElementById('webcamIndicator')
+        );
+        await webcamAnalyzer.initialize();
+        btnEnableCamera.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> Camera Active';
+      } catch (err) {
+        console.error("Camera init failed:", err);
+        btnEnableCamera.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger"></i> Failed';
+      }
+    });
+  }
+
+  // Speech Recognition Setup (Web Speech API as fallback/primary if AssemblyAI isn't used real-time)
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let finalTranscript = "";
+
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = '{{ session.interview_language|default:"en-US" }}';
+    
+    // Map backend language to correct code
+    if (recognition.lang === "Hindi") recognition.lang = 'hi-IN';
+    else if (recognition.lang === "Malayalam") recognition.lang = 'ml-IN';
+    else if (recognition.lang === "English") recognition.lang = 'en-US';
+
+    recognition.onresult = function(event) {
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + ' ';
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      transcriptArea.value = finalTranscript + interimTranscript;
+    };
+  }
+
+  startBtn.addEventListener('click', async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      finalTranscript = "";
+      transcriptArea.value = "";
+
+      mediaRecorder.addEventListener("dataavailable", event => {
+        audioChunks.push(event.data);
+      });
+
+      mediaRecorder.addEventListener("stop", () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], "interview_answer.webm", { type: 'audio/webm' });
+        
+        // Create a DataTransfer object to assign the file to the input
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(audioFile);
+        audioFileInput.files = dataTransfer.files;
+      });
+
+      mediaRecorder.start();
+      if (recognition) recognition.start();
+      
+      if (!webcamAnalyzer && window.WebcamAnalyzer && document.getElementById('webcamPreview')) {
+        if (btnEnableCamera) {
+          btnEnableCamera.disabled = true;
+          btnEnableCamera.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Starting Camera...';
+        }
+        try {
+          webcamAnalyzer = new window.WebcamAnalyzer(
+            document.getElementById('webcamPreview'),
+            document.getElementById('webcamIndicator')
+          );
+          await webcamAnalyzer.initialize();
+          if (btnEnableCamera) {
+            btnEnableCamera.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> Camera Active';
+          }
+        } catch (err) {
+          console.error("Auto camera init failed:", err);
+          if (btnEnableCamera) {
+            btnEnableCamera.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-danger"></i> Failed';
+          }
+        }
+      }
+      
+      if (webcamAnalyzer) webcamAnalyzer.startRecording();
+      
+      startTime = Date.now();
+      timerInterval = setInterval(updateTimer, 1000);
+      
+      startBtn.classList.add('d-none');
+      stopBtn.classList.remove('d-none');
+      recordingIndicator.classList.remove('d-none');
+      answerForm.classList.add('d-none');
+
+    } catch (err) {
+      alert("Microphone access is required for the interview.");
+      console.error(err);
+    }
+  });
+
+  stopBtn.addEventListener('click', () => {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    }
+    if (recognition) recognition.stop();
+    
+    if (webcamAnalyzer) {
+      const metrics = webcamAnalyzer.stopRecording();
+      if (metrics) {
+        visualMetricsInput.value = JSON.stringify(metrics);
+      }
+    }
+    
+    clearInterval(timerInterval);
+    const duration = Math.floor((Date.now() - startTime) / 1000);
+    durationInput.value = duration;
+
+    stopBtn.classList.add('d-none');
+    recordingIndicator.classList.add('d-none');
+    answerForm.classList.remove('d-none');
+  });
+
+  retryBtn.addEventListener('click', () => {
+    answerForm.classList.add('d-none');
+    startBtn.classList.remove('d-none');
+    timeDisplay.textContent = "00:00";
+    finalTranscript = "";
+    transcriptArea.value = "";
+  });
+
+  answerForm.addEventListener('submit', () => {
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Evaluating...';
+    submitBtn.disabled = true;
+    retryBtn.disabled = true;
+  });
+
+  function updateTimer() {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+    const s = (elapsed % 60).toString().padStart(2, '0');
+    timeDisplay.textContent = `${m}:${s}`;
+  }
+
+  // Text-to-Speech: AI Interviewer Voice
+  document.addEventListener("DOMContentLoaded", () => {
+    if ('speechSynthesis' in window) {
+      const questionText = "{{ question.question_text|escapejs }}";
+      
+      const speakQuestion = () => {
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(questionText);
+        
+        let langCode = 'en-US';
+        const sessionLang = '{{ session.interview_language|default:"English" }}';
+        if (sessionLang === 'Hindi') langCode = 'hi-IN';
+        else if (sessionLang === 'Malayalam') langCode = 'ml-IN';
+        
+        utterance.lang = langCode;
+        utterance.rate = 0.95; // Slightly slower, professional tone
+        utterance.pitch = 1.0;
+        
+        window.speechSynthesis.speak(utterance);
+      };
+
+      // Auto-play the question half a second after page loads
+      setTimeout(speakQuestion, 500);
+
+      // Replay button listener
+      const replayBtn = document.getElementById('replayQuestionBtn');
+      if (replayBtn) {
+        replayBtn.addEventListener('click', speakQuestion);
+      }
+    }
+  });
+</script>
+{% endblock %}

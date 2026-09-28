@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables if .env exists
-load_dotenv(BASE_DIR / ".env")
+# Load environment variables if .env exists, overriding existing to allow hot-reloading keys
+load_dotenv(BASE_DIR / ".env", override=True)
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-speakpro-ai-public-speaking-coach-2026-secret-key-!@#")

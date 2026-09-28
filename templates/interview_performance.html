@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Interview Performance — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container py-4 my-2">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-secondary">
+    <div>
+      <h1 class="fw-bold mb-1" style="color: #1C1B18;">
+        <i class="bi bi-graph-up-arrow me-2" style="color: #9b59b6;"></i>Skill Gap Analysis
+      </h1>
+      <p class="text-secondary small mb-0">Identify your weak areas across different interview domains.</p>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary rounded-pill px-4">
+      Back to Dashboard
+    </a>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="glass-card p-4 h-100">
+        <h5 class="fw-bold mb-4" style="color: #1C1B18;">Average Score by Domain</h5>
+        {% if domain_averages %}
+          {% for domain, avg in domain_averages.items %}
+          <div class="mb-4">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="fw-bold text-dark">{{ domain }}</span>
+              <span class="fw-bold {% if avg >= 80 %}text-success{% elif avg >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ avg }}%</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+              <div class="progress-bar {% if avg >= 80 %}bg-success{% elif avg >= 60 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ avg }}%;" aria-valuenow="{{ avg }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5 text-secondary">
+            <i class="bi bi-bar-chart text-muted display-6 d-block mb-3"></i>
+            <p>Complete more interviews to generate your skill gap analysis.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    
+    <div class="col-lg-4">
+      <div class="glass-card p-4 h-100" style="border-left: 4px solid #f39c12;">
+        <h5 class="fw-bold mb-3" style="color: #1C1B18;">
+          <i class="bi bi-lightbulb-fill text-warning me-2"></i>Recommended Practice
+        </h5>
+        
+        {% if domain_averages %}
+        <p class="small text-secondary mb-3">Based on your lowest scoring domains, we recommend focusing on:</p>
+        <ul class="list-group list-group-flush bg-transparent">
+          {% for domain, avg in domain_averages.items %}
+            {% if avg < 75 %}
+            <li class="list-group-item bg-transparent text-dark border-0 py-2 ps-0 border-bottom border-light-subtle">
+              <i class="bi bi-arrow-right-short text-warning me-1"></i> Practice more <strong>{{ domain }}</strong> concepts
+            </li>
+            {% endif %}
+          {% endfor %}
+          
+          <li class="list-group-item bg-transparent text-dark border-0 py-2 ps-0 border-bottom border-light-subtle">
+            <i class="bi bi-arrow-right-short text-warning me-1"></i> Work on structuring your answers clearly
+          </li>
+          <li class="list-group-item bg-transparent text-dark border-0 py-2 ps-0">
+            <i class="bi bi-arrow-right-short text-warning me-1"></i> Reduce filler words
+          </li>
+        </ul>
+        {% else %}
+        <p class="small text-secondary">No recommendations available yet.</p>
+        {% endif %}
+        
+        <div class="mt-4 text-center">
+          <a href="{% url 'interview_setup' %}" class="btn btn-warning rounded-pill px-4 text-dark fw-bold">
+            Start Practice Session
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
