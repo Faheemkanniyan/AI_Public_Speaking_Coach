@@ -381,6 +381,7 @@ class InterviewFeedback(models.Model):
     clarity_score = models.IntegerField(default=0)
     grammar_score = models.IntegerField(default=0)
     feedback_text = models.TextField(blank=True)
+    model_answer = models.TextField(blank=True)
     missing_points_json = models.TextField(default="[]")
     suggestions_json = models.TextField(default="[]")
     correct_points_json = models.TextField(default="[]")

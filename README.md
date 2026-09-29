@@ -119,57 +119,76 @@ sequenceDiagram
 
 ## 🌟 Key Features & Modules
 
-### 1. Speech Practice Studio
-*Step onto the virtual stage.*
-
-<div align="center">
-  <img src="base.png" alt="Speech Studio Dashboard" width="700"/>
-  <br/>
-  <i>(Experience our Glassmorphic Dark UI)</i>
-</div>
-
-- **Real-Time Audio Waveform**: A dynamic, glowing waveform reacts as you speak using HTML5 Canvas.
-- **Live Transcription**: See your words appear instantly via Web Speech API.
-
-### 2. 10-Dimension AI Evaluation Engine
-*We don't just tell you to improve; we show you exactly where and how.*
-
-| Dimension | What We Measure | AI Feedback Example |
-| :--- | :--- | :--- |
-| ⏱️ **Pacing** | Words per minute | *"165 WPM. Try slowing down during your main arguments."* |
-| 🗣️ **Fluency** | Filler words & pauses | *"You used 'um' 12 times. Pause silently instead."* |
-| 🎭 **Vocal Confidence** | Tone and assertiveness | *"Strong opening, but your volume dropped at the end."* |
-| 📚 **Lexical Variety** | Vocabulary richness | *"You repeated 'good' 5 times. Try 'excellent' or 'superb'."* |
-
-**Actionable Grammar Corrections:**
-> ❌ **You said:** "I goes to the store yesterday for buy apples."
-> ✅ **We suggest:** "I went to the store yesterday to buy apples."
-> 💡 **Coach Note:** Watch your past tense verbs and infinitive usage.
-
-### 3. Granular Analytics & Gamification
+### 1. Speaker Dashboard & Analytics
 *Track your consistency and watch your skills grow over time.*
 
-- 📈 **Visual Progress**: Daily, weekly, and monthly Chart.js dashboards.
-- 🎯 **Weakness Tracking**: Dedicated error history to spot recurring mistakes.
-- 🏅 **Badges & Streaks**: Earn achievements like *7-Day Streak* or *Grammar Master*.
+<div align="center">
+  <img src="docs/images/dashboard.png" alt="Speaker Dashboard" width="700"/>
+  <br/>
+  <i>(Track goals, streaks, and scores in a clean UI)</i>
+</div>
 
-### 4. Interactive Q&A Coach
+- 📈 **Visual Progress**: Daily, weekly, and monthly growth metrics at a glance.
+- 🎯 **Gamification**: Hit your daily practice goals and track your streaks to build consistency.
+- 🏅 **Granular Insights**: Track your highest score, average rating, and overall improvement.
+
+### 2. Speech Practice Studio with Webcam Tracking
+*Step onto the virtual stage with full confidence.*
+
+<div align="center">
+  <img src="docs/images/studio_webcam.png" alt="Speech Studio with Webcam" width="700"/>
+  <br/>
+  <i>(Practice with real-time video feedback and audio visualization)</i>
+</div>
+
+- **Real-Time Webcam Analysis**: Utilize your webcam to practice eye contact and monitor visual presence. The AI tracks body language and focus.
+- **Audio Waveform & Live Transcription**: A dynamic waveform reacts as you speak, with your words appearing instantly via Web Speech API.
+- **Distraction & Focus Detection**: Automatically flags if multiple faces appear or if you look away, helping you maintain a professional presence during interviews and presentations.
+
+### 3. 10-Dimension AI Evaluation Engine
+*We don't just tell you to improve; we show you exactly where and how.*
+
+<div align="center">
+  <img src="docs/images/report2.png" alt="Skill Breakdown" width="700"/>
+</div>
+
+| Dimension | What We Measure |
+| :--- | :--- |
+| ⏱️ **Pacing** | Words per minute and flow |
+| 🗣️ **Fluency** | Filler words & pauses |
+| 🎭 **Vocal Confidence** | Tone and assertiveness |
+| 📚 **Lexical Variety** | Vocabulary richness |
+| 🎯 **Overall Impact** | Grammar and syntax accuracy |
+
+**Deep Filler Word & Grammar Detection:**
+
+<div align="center">
+  <img src="docs/images/report1.png" alt="Grammar & Filler Analysis" width="700"/>
+</div>
+
+- **Transcribed Speech & Filler Word Detection**: Identifies exact filler words used, calculates time consumed, and offers AI-corrected executive-level speech revisions.
+- **Actionable Adjustments**: Receive polished revisions of your speech to sound more professional and articulate.
+
+### 4. Personalized Goal Setting
+*Tailor the coaching experience to your specific needs.*
+
+<div align="center">
+  <img src="docs/images/goals.png" alt="Goal Preferences" width="500"/>
+</div>
+
+- Define your main speaking goal, preferred language, current proficiency level, and daily/weekly practice time commitment. The app adjusts its tracking to match your pace.
+
+### 5. Interactive Q&A Coach
 *Got stage fright? Just ask the AI coach.*
 > **User:** *"I'm nervous about my upcoming pitch."*
 > **AI Coach:** *"Let's try a 4-7-8 breathing exercise. Also, remember to open with your strongest point to build early confidence..."*
 
-### 5. AI Mock Interviews (New)
+### 6. AI Mock Interviews
 *Nail your next job interview with domain-specific practice.*
 - **Customized Sessions**: Generate technical, HR, or behavioral questions based on your domain, technology, and difficulty. Smart padding guarantees 100% unique questions every time.
 - **Deep AI Evaluation**: Get scored on relevance, technical accuracy, completeness, structure, clarity, grammar, pace, and filler words.
 - **Intelligent Offline NLP Fallback**: If you hit Google Gemini API rate limits (Quota Exceeded 429) or disconnect, the system seamlessly transitions to an offline Keyword-Matching Evaluation Engine to grade your answers locally, so you are never blocked from practicing!
-- **Skill Gap Analysis**: Track your performance across different domains over time with detailed dashboards.
 - **AssemblyAI Integration**: Highly accurate transcription and precise filler word detection.
-
-### 6. Visual Presence & Webcam Analysis (New)
-*Ensure your body language is as strong as your voice.*
-- **Live Video Tracking**: Connects to your webcam to monitor visual presence and face alignment in real-time.
-- **Distraction & Focus Detection**: Automatically flags if multiple faces appear or if no face is detected, helping you maintain focus and professional presence.
 
 ### 7. AI Audio Feedback (Text-to-Speech)
 *Listen to your feedback on the go.*

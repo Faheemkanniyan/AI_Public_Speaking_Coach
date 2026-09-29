@@ -169,6 +169,15 @@
           {% endif %}
         </div>
 
+        {% if feedback.model_answer %}
+        <div class="mb-4">
+          <h5 class="fw-bold mb-2" style="color: #27ae60;"><i class="bi bi-check-circle me-2"></i>Model Answer</h5>
+          <div class="p-3 bg-light rounded border" style="border-color: #27ae60 !important; border-width: 2px !important;">
+            <p class="text-dark mb-0">{{ feedback.model_answer }}</p>
+          </div>
+        </div>
+        {% endif %}
+
         {% if answer.answer_status == 'ANSWERED' and feedback.evaluation_status == 'EVALUATED' %}
         <div class="row g-3">
           {% if correct_points %}

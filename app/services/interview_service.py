@@ -268,6 +268,7 @@ class InterviewService:
             "structure": integer,
             "professionalism": integer,
             "feedback": "string (Must include quotes from their transcript to justify your score)",
+            "model_answer": "string (A concise, clear, correct answer to the interview question, roughly 3-6 sentences, written as if spoken by a strong candidate)",
             "missing_points": ["string"],
             "correct_points": ["string"],
             "incorrect_points": ["string"],
@@ -323,7 +324,10 @@ class InterviewService:
                     if "quota" in error_msg or "429" in error_msg or "403" in error_msg:
                         error_reasons.append("Gemini Quota/Auth Error")
                         break # Skip retries and move to next provider
-                    error_reasons.append(f"Gemini Parse Error: {str(e)}")
+                    if "not found" in error_msg or "404" in error_msg:
+                        error_reasons.append("Gemini Model Not Found Error")
+                        break
+                    error_reasons.append("Gemini Parse Error")
                     prompt += "\n\nCRITICAL: YOUR PREVIOUS JSON WAS INVALID OR SCORES WERE IMPLAUSIBLE. ENSURE STRICT JSON COMPLIANCE."
 
         # Provider 2: OpenAI Fallback
@@ -356,9 +360,9 @@ class InterviewService:
                 error_reasons.append(f"OpenAI Error: {str(e)}")
         
         # Provider 3: Offline Keyword Fallback
-        return self._fallback_evaluation(answer_obj, f"AI Providers failed: {', '.join(error_reasons)}")
+        return self._fallback_evaluation(answer_obj, "We're using our offline evaluation engine right now — for best accuracy, try again in a moment.")
 
-    def _fallback_evaluation(self, answer_obj=None, error_message="AI evaluation is temporarily unavailable."):
+    def _fallback_evaluation(self, answer_obj=None, error_message="We're using our offline evaluation engine right now — for best accuracy, try again in a moment."):
         if answer_obj and answer_obj.transcript:
             transcript = answer_obj.transcript.lower()
             try:
@@ -403,6 +407,14 @@ class InterviewService:
                 else:
                     suggestions.append(f"Good eye contact ({vp.eye_contact_pct}%). Keep it up!")
 
+            is_preliminary = False
+            if overall_score == 50 and concept_coverage == 50:
+                is_preliminary = True
+
+            feedback_text = f"Offline Fallback Evaluation active: {error_message} We used basic keyword matching to estimate your score."
+            if is_preliminary:
+                feedback_text = f"[Preliminary score — re-evaluate when back online] {feedback_text}"
+
             return {
                 "evaluation_status": "EVALUATED",
                 "overall_score": overall_score,
@@ -414,7 +426,8 @@ class InterviewService:
                 "clarity": 50,
                 "structure": 50,
                 "professionalism": 50,
-                "feedback": f"Offline Fallback Evaluation active due to: {error_message} We used basic keyword matching to estimate your score.",
+                "feedback": feedback_text,
+                "model_answer": "Model answer unavailable in offline mode.",
                 "missing_points": missing_points,
                 "correct_points": correct_points,
                 "incorrect_points": [],
@@ -422,21 +435,22 @@ class InterviewService:
             }
 
         return {
-            "evaluation_status": "FAILED",
-            "overall_score": 0,
-            "classification": "Not Evaluated",
-            "technical_correctness": 0,
-            "concept_coverage": 0,
-            "completeness": 0,
-            "relevance": 0,
-            "clarity": 0,
-            "structure": 0,
-            "professionalism": 0,
-            "feedback": error_message,
-            "missing_points": [],
-            "correct_points": [],
-            "incorrect_points": [],
-            "suggestions": []
+                "evaluation_status": "FAILED",
+                "overall_score": 0,
+                "classification": "Not Evaluated",
+                "technical_correctness": 0,
+                "concept_coverage": 0,
+                "completeness": 0,
+                "relevance": 0,
+                "clarity": 0,
+                "structure": 0,
+                "professionalism": 0,
+                "feedback": error_message,
+                "model_answer": "",
+                "missing_points": [],
+                "correct_points": [],
+                "incorrect_points": [],
+                "suggestions": []
         }
 
     def analyze_filler_words(self, transcript):
