@@ -107,10 +107,12 @@ class GeminiSpeechAnalyzer:
            - If the speech is fewer than 30 words OR consumes less than 50% of the {duration_seconds}-second target duration, YOU MUST assign an overall_score between 25 and 45! Do NOT award 70+ or 80+ to short or incomplete speeches!
            - If the speech is 30 to 50 words OR consumes 50% to 70% of the target duration, cap the overall_score between 45 and 62.
            - All competency scores (grammar, vocabulary, confidence, fluency, communication) MUST be proportional to the overall_score—do not give 80+ or 90+ competency scores when time utilization is incomplete.
-        3. REALISTIC GRADING STANDARD:
-           - Use the full 0 to 100 scale.
-           - Average or fragmentary speeches should score 35-65.
-           - Do not give 80+ or 90+ unless the speech is truly outstanding in {lang_name} grammar, vocabulary, fluency, pacing, and topic mastery.
+        3. EXTREMELY STRICT GRADING STANDARD (EXECUTIVE LEVEL):
+           - Use the full 0 to 100 scale, but be BRUTALLY HONEST and VERY STRICT.
+           - Average or fragmentary speeches MUST score below 40.
+           - Good speeches should score 40-60.
+           - Do not give 70+ unless the speech is practically flawless in {lang_name} grammar, vocabulary, fluency, pacing, and topic mastery.
+           - Deduct points aggressively for ANY filler words, hesitation, grammar mistakes, or lack of executive presence.
            - Provide all strengths, weaknesses, mistakes, suggestions, and motivational feedback in clear English (with references or examples from the speaker's {lang_name} speech where appropriate).
 
         Evaluate the speech across 10 dimensions:

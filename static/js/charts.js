@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", function () {
   } catch (err) {
     console.warn("Could not parse Chart.js dataset JSON:", err);
   }
-});
+}); 
 
 /**
  * 1. Radar Chart – Skill Competencies Breakdown

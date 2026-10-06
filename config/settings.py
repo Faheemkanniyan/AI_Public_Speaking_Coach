@@ -68,28 +68,14 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 # Database
-# Connects to Supabase PostgreSQL if SUPABASE_DATABASE_URL or DATABASE_URL is in .env, otherwise defaults to local sqlite3
-try:
-    import dj_database_url
-except ImportError:
-    dj_database_url = None
+# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-SUPABASE_DB_URL = os.getenv("SUPABASE_DATABASE_URL") or os.getenv("DATABASE_URL")
-if SUPABASE_DB_URL and dj_database_url:
-    DATABASES = {
-        "default": dj_database_url.config(
-            default=SUPABASE_DB_URL,
-            conn_max_age=600,
-            ssl_require=True
-        )
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "database" / "db.sqlite3",
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "database" / "db.sqlite3",
-        }
-    }
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

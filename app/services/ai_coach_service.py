@@ -7,7 +7,7 @@ import os
 from django.conf import settings
 
 try:
-    import google.generativeai as genai
+    from google import genai
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
@@ -23,12 +23,11 @@ class AICoachService:
         self.api_key = getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
         if self.api_key and GENAI_AVAILABLE:
             try:
-                genai.configure(api_key=self.api_key)
-                self.model = genai.GenerativeModel("gemini-3.6-flash")
+                self.client = genai.Client(api_key=self.api_key)
             except Exception:
-                self.model = None
+                self.client = None
         else:
-            self.model = None
+            self.client = None
 
     def get_coach_response(self, user_message: str, user=None) -> str:
         """
@@ -37,7 +36,7 @@ class AICoachService:
         if not user_message or not user_message.strip():
             return "Hello! I am SpeakPro AI, your personal Public Speaking Coach. What speaking challenge can I help you conquer today?"
 
-        if self.model and self.api_key:
+        if self.client and self.api_key:
             try:
                 prompt = f"""
                 You are SpeakPro AI, a world-class Executive Communication and Public Speaking Coach.
@@ -47,7 +46,10 @@ class AICoachService:
                 Give a warm, actionable, highly practical response (in 3 to 4 concise paragraphs or clear bullet points)
                 providing expert speaking advice, exercises, and encouragement. Keep it professional, modern, and motivating.
                 """
-                res = self.model.generate_content(prompt)
+                res = self.client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=prompt
+                )
                 return res.text.strip()
             except Exception:
                 return self._fallback_coach_response(user_message)

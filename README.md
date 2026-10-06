@@ -22,7 +22,7 @@
 
 ## 🏗️ Architecture & How It Works
 
-The platform keeps your audio and PDF data local while leveraging the power of Google Gemini AI for advanced speech evaluation, AssemblyAI for precise transcriptions and filler word detection, and Supabase for syncing public user profiles and statistics. 
+The platform keeps your audio and PDF data local while leveraging the power of Google Gemini AI for advanced speech evaluation, and AssemblyAI for precise transcriptions and filler word detection. 
 
 ```mermaid
 graph TD
@@ -44,7 +44,7 @@ graph TD
     
     subgraph Storage [Hybrid Storage]
         DB[(SQLite Database)]
-        Supabase[(Supabase Cloud Sync)]
+
         Uploads[Audio Uploads /uploads/]
         PDFs[PDF Reports /reports/]
     end
@@ -65,7 +65,7 @@ graph TD
     ReportSvc --> PDFs
     ReportSvc --> DB
     Analytics --> DB
-    Analytics -.-> Supabase
+
     
     SpeechSvc --> Uploads
 ```
@@ -199,7 +199,7 @@ sequenceDiagram
 ## 🚀 Quick Start & Installation
 
 Requirements: Python 3.11+, Windows/macOS/Linux.
-*(Optional: Supabase for public profiles and AssemblyAI for advanced transcription).*
+*(Optional: AssemblyAI for advanced transcription).*
 
 ### 1. Activate Environment
 Ensure you are in the project root (`D:\AI_Public_Speaking_Coach\`) and activate the virtual environment:
