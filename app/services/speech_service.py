@@ -39,9 +39,9 @@ class SpeechService:
 
         return f"uploads/{filename}"
 
-    def process_speech_session(self, user, topic_id, topic_title, transcript_text, audio_file=None, duration_seconds=60, language="en-US", visual_metrics_raw=None):
+    def create_session(self, user, topic_id, topic_title, transcript_text, audio_file=None, duration_seconds=60, language="en-US", visual_metrics_raw=None):
         """
-        Creates a SpeechSession and executes AI speech analysis to generate a SpeechReport.
+        Creates a SpeechSession and saves the audio file for background processing.
         """
         from app.models import Topic, SpeechSession, SpeechReport, Score, UserProfile, Statistic, VisualPresence
         import json
@@ -110,11 +110,67 @@ class SpeechService:
                 import logging
                 logging.getLogger(__name__).warning(f"Failed to save visual metrics: {e}")
 
+        return session
+
+    def analyze_existing_session(self, session_id):
+        """
+        Background task method: Retrieves an existing SpeechSession, runs AI analysis (AssemblyAI & Gemini),
+        creates a SpeechReport, and updates stats.
+        """
+        from app.models import SpeechSession, SpeechReport, Score
+        import json
+        
+        session = SpeechSession.objects.get(id=session_id)
+        user = session.user
+        transcript_text = session.transcript
+        language = session.language
+        
+        visual_metrics = None
+        if hasattr(session, 'visual_presence') and session.visual_presence:
+            vp = session.visual_presence
+            visual_metrics = {
+                "eye_contact_pct": vp.eye_contact_pct,
+                "expression_variety_score": vp.expression_variety_score,
+                "posture_score": vp.posture_score,
+                "face_detected_pct": vp.face_detected_pct,
+                "gesture_activity_score": vp.gesture_activity_score
+            }
+
+        audio_path = session.audio_file.name if session.audio_file else ""
+        if audio_path:
+            try:
+                from app.services.assemblyai_service import AssemblyAIService
+                aai_service = AssemblyAIService()
+                if aai_service.is_enabled():
+                    full_audio_path = os.path.join(settings.BASE_DIR, audio_path)
+                    aai_result = aai_service.transcribe_audio(full_audio_path)
+                    if aai_result.get("status") == "completed" and aai_result.get("text"):
+                        transcript_text = aai_result.get("text", transcript_text)
+                        
+                        detected_lang = aai_result.get("language_code", "")
+                        if detected_lang:
+                            if detected_lang.startswith("hi"):
+                                language = "hi-IN"
+                            elif detected_lang.startswith("ml"):
+                                language = "ml-IN"
+                            elif detected_lang.startswith("ta"):
+                                language = "ta-IN"
+                            elif detected_lang.startswith("kn"):
+                                language = "kn-IN"
+                            elif detected_lang.startswith("en"):
+                                language = "en-US"
+                        
+                        session.transcript = transcript_text
+                        session.language = language
+                        session.save()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"AssemblyAI transcription fallback: {e}")
+
         # Perform AI Speech Analysis
         from app.services.gemini_service import GeminiSpeechAnalyzer
         analyzer = GeminiSpeechAnalyzer()
         ai_data = analyzer.analyze_speech(transcript_text, session.topic_title, duration_seconds=session.duration_seconds, language=language, visual_metrics=visual_metrics)
-
 
         # Create SpeechReport
         report = SpeechReport.objects.create(

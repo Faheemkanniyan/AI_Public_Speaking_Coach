@@ -80,7 +80,9 @@ def api_speech_analyze(request):
         visual_metrics = request.POST.get("visual_metrics", None)
 
         speech_service = SpeechService()
-        session, report = speech_service.process_speech_session(
+        
+        # Synchronously create the session and save the audio file
+        session = speech_service.create_session(
             user=request.user,
             topic_id=topic_id,
             topic_title=topic_title,
@@ -90,11 +92,15 @@ def api_speech_analyze(request):
             language=language,
             visual_metrics_raw=visual_metrics
         )
+        
+        # Trigger Celery task asynchronously
+        from app.tasks import analyze_speech_task
+        analyze_speech_task.delay(session.id)
 
         return JsonResponse({
             "status": "success",
             "session_id": session.id,
-            "overall_score": report.overall_score,
+            "overall_score": 0, # Analysis is running in background, score will be ready soon
             "redirect_url": f"/result/{session.id}/"
         })
     except Exception as e:
