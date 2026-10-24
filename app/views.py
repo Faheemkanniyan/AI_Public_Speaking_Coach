@@ -214,6 +214,18 @@ def dashboard_view(request):
     first_session = all_sessions.first()
     latest_session = all_sessions.last() if all_sessions.count() > 1 else None
 
+    # Fetch user's weakness / recurring error history
+    weakness_errors = ErrorHistory.objects.filter(user=request.user).order_by("-frequency")[:8]
+    
+    # Aggregate recent weaknesses from speech reports
+    recent_weaknesses_list = []
+    for sess in recent_sessions:
+        if hasattr(sess, 'report') and sess.report:
+            for w in sess.report.get_weaknesses():
+                if w and w not in recent_weaknesses_list:
+                    recent_weaknesses_list.append(w)
+    recent_weaknesses_list = recent_weaknesses_list[:5]
+
     context = {
         "profile": profile,
         "stats": stats,
@@ -235,6 +247,8 @@ def dashboard_view(request):
         "tomorrow_focus": tomorrow_focus,
         "first_session": first_session,
         "latest_session": latest_session,
+        "weakness_errors": weakness_errors,
+        "recent_weaknesses_list": recent_weaknesses_list,
     }
     return render(request, "dashboard.html", context)
 

@@ -243,6 +243,111 @@
     </div>
   </div>
 
+  <!-- My Weaknesses & Recurring Errors -->
+  <div class="row g-4 mb-4" id="myWeaknessesSection">
+    <div class="col-12">
+      <div class="glass-card p-4 position-relative overflow-hidden" style="border-left: 4px solid #e74c3c;">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3 pb-2 border-bottom" style="border-color: #EAE5DE !important;">
+          <div>
+            <h5 class="fw-bold mb-1" style="color: #1C1B18;">
+              <i class="bi bi-shield-exclamation me-2 text-danger"></i>My Weaknesses &amp; Recurring Errors
+            </h5>
+            <p class="text-secondary small mb-0">Track recurring mistakes and AI-detected focus areas to elevate your speaking precision.</p>
+          </div>
+          {% if weakness_errors or recent_weaknesses_list %}
+          <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-1 rounded-pill">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>Active Improvement Areas
+          </span>
+          {% endif %}
+        </div>
+
+        {% if weakness_errors or recent_weaknesses_list %}
+        <div class="row g-4">
+          <!-- Left Column: Recurring Spoken Mistakes -->
+          <div class="col-lg-7">
+            <h6 class="text-uppercase small fw-bold mb-3" style="color: #6A665E;">
+              <i class="bi bi-arrow-repeat me-1 text-danger"></i>Recurring Spoken Errors
+            </h6>
+            {% if weakness_errors %}
+            <div class="table-responsive">
+              <table class="table table-sm table-borderless align-middle mb-0">
+                <thead class="text-secondary small border-bottom" style="border-color: #EAE5DE !important;">
+                  <tr>
+                    <th class="pb-2">Type</th>
+                    <th class="pb-2">What You Spoke</th>
+                    <th class="pb-2">Recommended Correction</th>
+                    <th class="pb-2 text-center">Frequency</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for error in weakness_errors %}
+                  <tr class="border-bottom" style="border-color: #F4EFEA !important;">
+                    <td class="py-2">
+                      <span class="badge badge-safe px-2 py-1 small">{{ error.error_type }}</span>
+                    </td>
+                    <td class="py-2">
+                      <span class="text-danger fw-semibold small">"{{ error.error_text|truncatechars:35 }}"</span>
+                    </td>
+                    <td class="py-2">
+                      <span class="text-success fw-medium small">{{ error.correction|truncatechars:45 }}</span>
+                    </td>
+                    <td class="py-2 text-center">
+                      <span class="badge bg-warning text-dark rounded-pill">{{ error.frequency }}x</span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="p-3 rounded-3 bg-light text-muted small">
+              <i class="bi bi-check2-circle text-success me-1"></i>No repeating spoken errors recorded yet. Keep practicing!
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Right Column: AI-Identified Delivery Weaknesses -->
+          <div class="col-lg-5">
+            <h6 class="text-uppercase small fw-bold mb-3" style="color: #6A665E;">
+              <i class="bi bi-lightning-charge-fill me-1 text-warning"></i>Key Focus Points From AI
+            </h6>
+            {% if recent_weaknesses_list %}
+            <div class="d-flex flex-column gap-2">
+              {% for weakness in recent_weaknesses_list %}
+              <div class="p-3 rounded-3 d-flex align-items-start gap-2" style="background-color: #FDF7F7; border-left: 3px solid #e74c3c;">
+                <i class="bi bi-crosshair text-danger mt-1"></i>
+                <div class="small text-dark">{{ weakness }}</div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="p-3 rounded-3 bg-light text-muted small">
+              <i class="bi bi-info-circle me-1"></i>Complete speeches in the practice studio to get targeted delivery insights.
+            </div>
+            {% endif %}
+            <div class="mt-3 text-end">
+              <a href="{% url 'practice' %}" class="btn btn-sm btn-safe-space rounded-pill px-3">
+                <i class="bi bi-mic-fill me-1"></i>Practice To Fix These
+              </a>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+          <div class="d-inline-flex p-3 rounded-circle bg-success-subtle text-success mb-2">
+            <i class="bi bi-shield-check fs-2"></i>
+          </div>
+          <h6 class="fw-bold mb-1" style="color: #1C1B18;">Zero Recurring Errors Tracked</h6>
+          <p class="text-secondary small mb-3">You currently have no persistent speaking flaws or recurring grammar errors recorded.</p>
+          <a href="{% url 'practice' %}" class="btn btn-sm btn-safe-space rounded-pill px-4">
+            <i class="bi bi-mic-fill me-1"></i>Start Practice Session
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
   <!-- Interview Preparation Card -->
   <div class="row g-4 mb-4">
     <div class="col-12">
