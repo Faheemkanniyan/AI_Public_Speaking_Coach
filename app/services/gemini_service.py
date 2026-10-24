@@ -133,27 +133,21 @@ CRITICAL RULES:
         Transcript ({lang_name}):
         "{transcript}"
         
-          CRITICAL EVALUATION & GRADING RULES (STRICT - DO NOT INFLATE SCORES):
-        0. MINIMAL ATTEMPT / SINGLE WORD OR GREETINGS (< 5 words):
-           - If the speaker only said 1 to 4 words (e.g. "hello", "hi", "test", "good morning"), YOU MUST assign an overall_score between 5 and 10 out of 100! All competency scores (grammar, vocabulary, confidence, fluency, communication) MUST ALSO be between 5 and 10!
-           - Explicitly point out in weaknesses and motivational_feedback that saying only 1 to 4 words consumed practically 0 seconds of their {duration_seconds}s target time and is insufficient for speech analysis.
-        1. LANGUAGE & TOPIC RELEVANCE CHECK:
-           - The speech is in {lang_name}. Evaluate their mastery of {lang_name} grammar, vocabulary, fluency, and expression.
-           - Check if the speech actually addresses the topic "{topic}".
-           - If the speech is OFF-TOPIC, unrelated to "{topic}", or completely ignores the assigned topic, YOU MUST penalize the overall score and communication score heavily (set overall_score between 15 and 45). Explicitly state in motivational_feedback and weaknesses that the speech was off-topic and did not address "{topic}".
-        2. SPEECH LENGTH & TARGET DURATION CHECK ({duration_seconds} seconds target):
-           - Count the words in the transcript.
-           - The speaker chose a target duration of {duration_seconds} seconds.
-           - If the speech is fewer than 30 words OR consumes less than 50% of the {duration_seconds}-second target duration, YOU MUST assign an overall_score between 25 and 45! Do NOT award 70+ or 80+ to short or incomplete speeches!
-           - If the speech is 30 to 50 words OR consumes 50% to 70% of the target duration, cap the overall_score between 45 and 62.
-           - All competency scores (grammar, vocabulary, confidence, fluency, communication) MUST be proportional to the overall_score—do not give 80+ or 90+ competency scores when time utilization is incomplete.
-        3. EXTREMELY STRICT GRADING STANDARD (EXECUTIVE LEVEL):
-           - Use the full 0 to 100 scale, but be BRUTALLY HONEST and VERY STRICT.
-           - Average or fragmentary speeches MUST score below 40.
-           - Good speeches should score 40-60.
-           - Do not give 70+ unless the speech is practically flawless in {lang_name} grammar, vocabulary, fluency, pacing, and topic mastery.
-           - Deduct points aggressively for ANY filler words, hesitation, grammar mistakes, or lack of executive presence.
-           - Provide all strengths, weaknesses, mistakes, suggestions, and motivational feedback in clear English (with references or examples from the speaker's {lang_name} speech where appropriate).
+        CRITICAL EVALUATION & BALANCED SCORING STANDARDS:
+        1. MINIMAL ATTEMPT (< 5 words):
+           - Only if the speaker literally said 1 to 4 words (e.g. "hello", "test", "hi"), assign an overall_score between 5 and 15 out of 100.
+        2. SPEECH EVALUATION TIERS (Fair & Balanced):
+           - 80-100 (Executive Orator): Excellent structure, compelling delivery, strong vocabulary, clear thesis, minimal fillers.
+           - 65-79 (Proficient Speaker): Clear communication, solid points, good flow, minor hesitations or small grammatical errors.
+           - 50-64 (Developing Speaker): Good effort, understandable ideas, noticeable filler words or informal phrasing, some repetition.
+           - 35-49 (Emerging Speaker): Frequent restarts, significant grammar or syntax issues, disjointed thoughts, but still an attempt to communicate.
+           - Below 35: Incoherent rambling, completely off-topic, or fewer than 15 words.
+        3. SPEECH-TO-TEXT TOLERANCE:
+           - The speech was captured via microphone. Account for natural spoken speech patterns, oral syntax, and slight acoustic transcription artifacts without unfairly slashing scores.
+        4. TOPIC RELEVANCE:
+           - Check if the speech genuinely attempts to address "{topic}". If completely off-topic, provide constructive feedback explaining how to align with the prompt.
+        5. ACCURATE MISTAKE IDENTIFICATION:
+           - In "mistakes", identify actual spoken grammatical errors, awkward phrases, or repetitive expressions from the transcript and provide clear, professional corrections.
 
         Evaluate the speech across 10 dimensions:
         1. Grammar (0-100)
@@ -667,131 +661,91 @@ CRITICAL RULES:
                     is_off_topic = True
 
         # 4. Strict Proportional Scoring Tiers based on Time Consumed & Total Words
+        # 4. Proportional Scoring Tiers based on Length & Structure
         if total_words < 5:
-            # e.g., saying only "hello", "hi", "test"
-            score_val = max(5, min(10, total_words * 3))
+            # Saying only "hello", "hi", "test"
+            score_val = max(5, min(15, total_words * 3))
             for col in ["overall_score", "grammar_score", "vocabulary_score", "confidence_score", "fluency_score", "communication_score"]:
                 data[col] = score_val
-            data["strengths"] = ["Microphone recording capture was clear."]
+            data["strengths"] = ["Microphone recording was captured successfully."]
             data["weaknesses"] = [
-                f"Speech was only {total_words} word(s) ('{transcript}'). An executive speech evaluation requires a complete speech attempting the target duration of {duration_seconds} seconds.",
-                f"Time Consumed: Spoke for less than {estimated_seconds}s out of {duration_seconds}s target time (< 5% time utilization).",
+                f"Speech was only {total_words} word(s) ('{transcript}'). Please speak in complete sentences to evaluate your communication skills.",
                 f"Did not address the assigned topic: '{topic}'."
             ]
             if not existing_mistakes:
                 data["mistakes"] = [{
                     "original": transcript,
-                    "correction": f"{transcript} Good morning everyone, today I want to discuss '{topic}'...",
-                    "reason": "Expand single-word or fragmentary greetings into a complete, structured speech addressing your assigned topic."
+                    "correction": f"Good morning everyone, today I want to discuss '{topic}'...",
+                    "reason": "Expand single-word greetings into a complete speech addressing your assigned topic."
                 }]
             data["improvement_suggestions"] = [
-                f"Speak for at least {max(30, int(duration_seconds * 0.7))} to {duration_seconds} seconds to utilize your target speaking time.",
-                "Introduce a clear thesis statement within the first 10 seconds of speaking.",
-                "Provide supporting arguments and a structured conclusion."
+                "Aim for at least 30 to 60 seconds of speaking to develop a full thought.",
+                "Introduce a clear thesis statement within your opening sentence.",
+                "Provide supporting examples and a closing summary."
             ]
             data["motivational_feedback"] = (
-                f"Your session received an Overall Score of {score_val}/100 because only {total_words} word(s) ('{transcript}') were recorded, "
-                f"which consumed practically 0 seconds of your {duration_seconds}-second target duration. "
-                f"To evaluate your grammar, vocal confidence, vocabulary, and communication impact accurately, please deliver a complete speech addressing '{topic}'."
+                f"Your session received an Overall Score of {score_val}/100 because only {total_words} word(s) were recorded. "
+                f"Please deliver a complete speech addressing '{topic}' to get full feedback on your grammar, vocabulary, and delivery."
             )
 
-        elif total_words < 15:
-            # Very short fragment (e.g. 1 short sentence)
-            score_val = min(22, max(12, int(total_words * 1.3)))
+        elif total_words < 20:
+            # Very brief fragment (1 short sentence)
+            score_val = min(38, max(20, int(total_words * 1.8)))
             data["overall_score"] = min(int(data.get("overall_score", score_val)), score_val)
             for col in ["grammar_score", "vocabulary_score", "confidence_score", "fluency_score", "communication_score"]:
-                data[col] = min(int(data.get(col, 25)), 25)
+                data[col] = min(int(data.get(col, 40)), 40)
             
             data["weaknesses"] = list(data.get("weaknesses", []))
-            time_msg = f"Time Consumed: Speech was only {total_words} words (~{estimated_seconds}s), leaving most of the {duration_seconds}s target duration unused."
-            if not any("Time" in w for w in data["weaknesses"]):
+            time_msg = f"Brief Speech: Recorded {total_words} words. Expand with more supporting details and examples."
+            if not any("Brief" in w for w in data["weaknesses"]):
                 data["weaknesses"].insert(0, time_msg)
-            
-            data["motivational_feedback"] = (
-                f"Your speech received a score of {data['overall_score']}/100 because it was very brief ({total_words} words, ~{estimated_seconds}s). "
-                f"While your initial delivery was recorded clearly, an executive evaluation requires attempting your target duration of {duration_seconds}s."
-            )
 
-        elif time_utilization_pct < 45 or total_words < 30:
-            # Significantly Incomplete Speech (e.g., 35% time utilization or 24 words on any target duration)
-            # Tightly penalize both overall score and all skill competencies proportionally
-            base_max_overall = max(25, min(40, int(time_utilization_pct * 1.1)))
-            if grammar_error_count > 0:
-                base_max_overall = max(18, base_max_overall - (grammar_error_count * 3))
-            
-            data["overall_score"] = min(int(data.get("overall_score", base_max_overall)), base_max_overall)
-            max_skill = max(25, min(42, int(time_utilization_pct * 1.15)))
-            for col in ["vocabulary_score", "confidence_score", "fluency_score", "communication_score"]:
-                data[col] = min(int(data.get(col, max_skill)), max_skill)
-            data["grammar_score"] = min(int(data.get("grammar_score", 45)), max(20, 42 - (grammar_error_count * 6)))
-            if grammar_error_count > 0:
-                data["communication_score"] = min(data["communication_score"], max(20, 40 - (grammar_error_count * 4)))
-
-            data["weaknesses"] = list(data.get("weaknesses", []))
-            time_msg = f"Incomplete Speaking Time: Consumed only ~{estimated_seconds}s out of {duration_seconds}s target duration ({time_utilization_pct}% utilized)."
-            if not any("Time" in w for w in data["weaknesses"]):
-                data["weaknesses"].insert(0, time_msg)
-            
-            data["motivational_feedback"] = (
-                f"Your speech received an Overall Score of {data['overall_score']}/100 because you utilized {time_utilization_pct}% of your {duration_seconds}s target duration ({estimated_seconds}s consumed, {total_words} words) "
-                f"and had grammatical inaccuracies. To earn a proficient executive score (70+), deliver a complete speech that fills your target speaking duration with well-structured arguments and clean grammar."
-            )
-
-
-        elif time_utilization_pct < 70 or total_words < 50:
-            # Partially Complete Speech (45% to 69% utilization)
-            base_max_overall = max(45, min(62, int(time_utilization_pct * 0.9)))
-            if grammar_error_count > 0:
-                base_max_overall = max(35, base_max_overall - (grammar_error_count * 4))
-            data["overall_score"] = min(int(data.get("overall_score", base_max_overall)), base_max_overall)
-            max_skill = max(48, min(68, int(time_utilization_pct * 0.95)))
+        elif total_words < 40:
+            # Short Speech (20-39 words)
+            cap_score = min(60, max(38, int(data.get("overall_score", 50))))
+            data["overall_score"] = cap_score
             for col in ["grammar_score", "vocabulary_score", "confidence_score", "fluency_score", "communication_score"]:
-                data[col] = min(int(data.get(col, max_skill)), max_skill)
+                data[col] = min(int(data.get(col, 62)), 62)
 
             data["weaknesses"] = list(data.get("weaknesses", []))
-            time_msg = f"Time Utilization: Consumed ~{estimated_seconds}s out of {duration_seconds}s target duration ({time_utilization_pct}% utilized)."
-            if not any("Time" in w for w in data["weaknesses"]):
-                data["weaknesses"].insert(0, time_msg)
-
-            data["motivational_feedback"] = (
-                f"Your speech received a score of {data['overall_score']}/100 because you utilized {time_utilization_pct}% of your {duration_seconds}s target duration ({estimated_seconds}s consumed). "
-                f"Try to expand your arguments to use the full {duration_seconds} seconds for a higher executive score."
-            )
+            if time_utilization_pct < 60:
+                time_msg = f"Speaking Length: Delivered {total_words} words (~{estimated_seconds}s). Consider elaborating further to fill your target speaking time."
+                if not any("Speaking Length" in w for w in data["weaknesses"]):
+                    data["weaknesses"].append(time_msg)
 
         elif is_off_topic:
             # Off-topic penalty
-            data["overall_score"] = min(int(data.get("overall_score", 35)), 35)
-            data["communication_score"] = min(int(data.get("communication_score", 30)), 30)
+            data["overall_score"] = min(int(data.get("overall_score", 45)), 45)
+            data["communication_score"] = min(int(data.get("communication_score", 40)), 40)
             data["weaknesses"] = list(data.get("weaknesses", []))
             top_msg = f"Speech content did not align with the assigned topic: '{topic}'."
             if not any("topic" in w.lower() for w in data["weaknesses"]):
                 data["weaknesses"].insert(0, top_msg)
 
         else:
-            # Complete speech: Apply grammar mistake deductions and pacing checks
+            # Standard Speech (40+ words)
+            # Evaluate based on Gemini's assessment, adjusting moderately for grammar error count
             if grammar_error_count > 0:
-                data["grammar_score"] = min(
-                    int(data.get("grammar_score", 85)),
-                    max(30, 92 - (grammar_error_count * 7))
-                )
-                if data["grammar_score"] < 65:
-                    data["overall_score"] = min(int(data.get("overall_score", 85)), int((data["grammar_score"] + int(data.get("communication_score", 80)) + int(data.get("confidence_score", 80))) / 3))
+                deduction = min(15, grammar_error_count * 3)
+                data["grammar_score"] = max(35, int(data.get("grammar_score", 75)) - deduction)
+                data["overall_score"] = max(35, int(data.get("overall_score", 70)) - int(deduction * 0.4))
 
             data["strengths"] = list(data.get("strengths", []))
             data["weaknesses"] = list(data.get("weaknesses", []))
+
             if time_utilization_pct >= 75:
-                time_str = f"Excellent time management: consumed {estimated_seconds}s of the {duration_seconds}s target duration ({wpm_pace} WPM)."
+                time_str = f"Strong time management: consumed {estimated_seconds}s of your target duration ({wpm_pace} WPM)."
                 if not any("time" in s.lower() for s in data["strengths"]):
                     data["strengths"].insert(0, time_str)
-            else:
-                time_wk = f"Time Consuming: Spoke for ~{estimated_seconds}s out of {duration_seconds}s target duration ({time_utilization_pct}% utilized)."
-                if not any("Time" in w for w in data["weaknesses"]):
-                    data["weaknesses"].insert(0, time_wk)
+            elif time_utilization_pct < 60:
+                time_wk = f"Speaking Length: Spoke for ~{estimated_seconds}s out of {duration_seconds}s target duration ({time_utilization_pct}% utilized). Expand your key points for greater impact."
+                if not any("Speaking Length" in w for w in data["weaknesses"]):
+                    data["weaknesses"].append(time_wk)
 
-            if wpm_pace > (ideal_max_wpm + 25):
-                data["weaknesses"].append(f"Speaking pace was too rapid ({wpm_pace} WPM); aim for {ideal_min_wpm}-{ideal_max_wpm} WPM for optimal executive clarity in this language.")
-            elif wpm_pace < (ideal_min_wpm - 25):
-                data["weaknesses"].append(f"Speaking pace was slow or hesitant ({wpm_pace} WPM); aim for a steady {ideal_min_wpm}-{ideal_max_wpm} WPM in this language.")
+            if wpm_pace > (ideal_max_wpm + 30):
+                data["weaknesses"].append(f"Speaking pace was very rapid ({wpm_pace} WPM); aim for {ideal_min_wpm}-{ideal_max_wpm} WPM for optimal clarity.")
+            elif wpm_pace < (ideal_min_wpm - 35) and total_words >= 30:
+                data["weaknesses"].append(f"Speaking pace was slightly slow ({wpm_pace} WPM); aim for a steady {ideal_min_wpm}-{ideal_max_wpm} WPM.")
 
         # Ensure all scores are strictly bounded 0-100 and integers
         for k in ["overall_score", "grammar_score", "vocabulary_score", "confidence_score", "fluency_score", "communication_score"]:

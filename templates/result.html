@@ -89,8 +89,20 @@
           </div>
         </div>
 
-        <span class="badge {% if report.overall_score >= 80 %}bg-success text-dark{% elif report.overall_score >= 70 %}bg-info text-dark{% elif report.overall_score >= 40 %}bg-warning text-dark{% else %}bg-danger text-light{% endif %} px-3 py-1 rounded-pill fw-bold">
-          {% if report.overall_score >= 80 %}EXECUTIVE ORATOR{% elif report.overall_score >= 70 %}PROFICIENT SPEAKER{% elif report.overall_score >= 40 %}DEVELOPING SPEAKER{% else %}MINIMAL ATTEMPT (< 5 WORDS){% endif %}
+        <span class="badge {% if report.overall_score >= 80 %}bg-success text-dark{% elif report.overall_score >= 65 %}bg-info text-dark{% elif report.overall_score >= 50 %}bg-warning text-dark{% elif report.overall_score >= 35 %}bg-secondary text-light{% else %}bg-danger text-light{% endif %} px-3 py-1 rounded-pill fw-bold">
+          {% if report.session.transcript.split|length < 5 %}
+            MINIMAL ATTEMPT (&lt; 5 WORDS)
+          {% elif report.overall_score >= 80 %}
+            EXECUTIVE ORATOR
+          {% elif report.overall_score >= 65 %}
+            PROFICIENT SPEAKER
+          {% elif report.overall_score >= 50 %}
+            DEVELOPING SPEAKER
+          {% elif report.overall_score >= 35 %}
+            EMERGING SPEAKER
+          {% else %}
+            NEEDS PRACTICE
+          {% endif %}
         </span>
       </div>
     </div>

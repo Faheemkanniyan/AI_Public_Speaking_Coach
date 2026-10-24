@@ -1164,8 +1164,8 @@ async function submitSpeechForAnalysis() {
   const formData = new FormData();
   formData.append("transcript", transcript);
   if (currentTopicId) formData.append("topic_id", currentTopicId);
-  formData.append("topic_title", currentTopicTitle || "General Practice");
-  formData.append("duration_seconds", window.selectedDurationSeconds || maxTime(elapsedSeconds, 60));
+  const speakingDuration = elapsedSeconds > 4 ? elapsedSeconds : (window.selectedDurationSeconds || 60);
+  formData.append("duration_seconds", speakingDuration);
   formData.append("language", window.selectedLanguage || "en-US");
   if (audioBlob) {
     formData.append("audio_file", audioBlob, "speech_recording.webm");
