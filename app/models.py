@@ -85,6 +85,8 @@ class SpeechReport(models.Model):
     vocabulary_score = models.IntegerField(default=0)
     communication_score = models.IntegerField(default=0)
     fluency_score = models.IntegerField(default=0)
+    presence_score = models.IntegerField(default=0, help_text="AI Visual Presence & Body Language Score (0-100)")
+    body_language_feedback = models.TextField(blank=True, default="", help_text="Gemini evaluation of webcam visual presence")
 
     # JSON fields for structured lists
     strengths_json = models.TextField(default="[]", help_text="JSON list of strengths")
@@ -421,6 +423,8 @@ class VisualPresence(models.Model):
     posture_score = models.IntegerField(default=0)
     face_detected_pct = models.IntegerField(default=0)
     gesture_activity_score = models.IntegerField(null=True, blank=True)
+    presence_score = models.IntegerField(default=0, help_text="Visual presence score (0-100)")
+    ai_feedback = models.TextField(blank=True, default="", help_text="Gemini evaluation of body language and visual presence")
     
     # Proctoring & Integrity Events
     face_count_violations_json = models.TextField(default="[]", help_text="JSON list of {timestamp, duration} when >1 face was detected")

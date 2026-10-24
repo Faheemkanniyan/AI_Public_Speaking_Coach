@@ -93,7 +93,9 @@ class SpeechService:
                     expression_variety_score=visual_metrics.get("expression_variety_score", 0),
                     posture_score=visual_metrics.get("posture_score", 0),
                     face_detected_pct=visual_metrics.get("face_detected_pct", 0),
-                    gesture_activity_score=visual_metrics.get("gesture_activity_score")
+                    gesture_activity_score=visual_metrics.get("gesture_activity_score"),
+                    face_count_violations_json=visual_metrics.get("face_count_violations_json", "[]"),
+                    gaze_away_events_json=visual_metrics.get("gaze_away_events_json", "[]")
                 )
             except Exception as e:
                 import logging
@@ -170,6 +172,8 @@ class SpeechService:
             vocabulary_score=ai_data.get("vocabulary_score", 0),
             communication_score=ai_data.get("communication_score", 0),
             fluency_score=ai_data.get("fluency_score", 0),
+            presence_score=ai_data.get("presence_score", 0),
+            body_language_feedback=ai_data.get("body_language_feedback", ""),
             strengths_json=json.dumps(ai_data.get("strengths", [])),
             weaknesses_json=json.dumps(ai_data.get("weaknesses", [])),
             mistakes_json=json.dumps(ai_data.get("mistakes", [])),
@@ -178,6 +182,16 @@ class SpeechService:
             exercises_json=json.dumps(ai_data.get("practice_exercises", [])),
         )
 
+        # Update VisualPresence with AI body language feedback if available
+        if hasattr(session, 'visual_presence') and session.visual_presence:
+            try:
+                session.visual_presence.ai_feedback = ai_data.get("body_language_feedback", "")
+                session.visual_presence.presence_score = ai_data.get("presence_score", 0)
+                session.visual_presence.save()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Could not update visual presence feedback: {e}")
+
         # Record Score trends
         Score.objects.create(user=user, session=session, category_name="Overall", score_value=report.overall_score)
         Score.objects.create(user=user, session=session, category_name="Grammar", score_value=report.grammar_score)
@@ -185,6 +199,8 @@ class SpeechService:
         Score.objects.create(user=user, session=session, category_name="Vocabulary", score_value=report.vocabulary_score)
         Score.objects.create(user=user, session=session, category_name="Communication", score_value=report.communication_score)
         Score.objects.create(user=user, session=session, category_name="Fluency", score_value=report.fluency_score)
+        if report.presence_score > 0:
+            Score.objects.create(user=user, session=session, category_name="Presence", score_value=report.presence_score)
 
         # Update UserProfile & Statistics
         self._update_user_stats(user, session, report)

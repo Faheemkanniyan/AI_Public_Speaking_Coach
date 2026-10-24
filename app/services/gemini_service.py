@@ -106,62 +106,52 @@ CRITICAL RULES:
 
     def _analyze_with_gemini(self, transcript: str, topic: str, duration_seconds: int = 60, language: str = "en-US", visual_metrics: dict = None) -> dict:
         """
-        Calls Google Gemini API with a structured prompt including topic relevance, target duration, language, and visual metrics.
+        Calls Google Gemini API with a structured prompt including speech transcript, topic relevance,
+        target duration, language, and webcam visual presence metrics.
         """
         lang_name = "English"
-        expected_wpm = "120-150 WPM"
 
         visual_context = ""
-        if visual_metrics:
+        has_webcam = bool(visual_metrics and visual_metrics.get("face_detected_pct", 0) > 0)
+        if has_webcam:
             visual_context = f"""
-        [VISUAL PRESENCE DATA INCLUDED - Evaluated Client-Side via FaceMesh]
-        - Eye Contact (Looking at camera): {visual_metrics.get('eye_contact_pct')}%
-        - Posture Stability Score: {visual_metrics.get('posture_score')}/100
-        - Expression Variety Score: {visual_metrics.get('expression_variety_score')}/100
-        - Face Detected during recording: {visual_metrics.get('face_detected_pct')}%
-        Note: You MUST evaluate this 11th dimension 'Presence & Body Language' and include specific feedback about their eye contact, posture, and expressions in the strengths, weaknesses, and motivational feedback.
+        [WEBCAM VISUAL PRESENCE & BODY LANGUAGE DATA - Processed Locally via FaceMesh Tracking]
+        - Eye Contact (Looking directly at camera): {visual_metrics.get('eye_contact_pct', 0)}%
+        - Posture Stability Score: {visual_metrics.get('posture_score', 0)}/100
+        - Expression Variety Score: {visual_metrics.get('expression_variety_score', 0)}/100
+        - Face Detected in Frame: {visual_metrics.get('face_detected_pct', 0)}%
+        """
+        else:
+            visual_context = """
+        [WEBCAM VISUAL PRESENCE DATA]
+        - No webcam video stream was recorded for this session.
         """
 
         prompt = f"""
         You are an expert AI Public Speaking Coach and Executive Communications Judge.
-        The speaker delivered their speech in {lang_name} (Language Code: {language}) on the assigned topic: "{topic}".
-        The speaker chose a Target Speaking Duration of: {duration_seconds} seconds.
-        The optimal pacing standard for {lang_name} is {expected_wpm}.
-        
+        The speaker delivered their speech in {lang_name} on the assigned topic: "{topic}".
+        Target Speaking Duration: {duration_seconds} seconds.
+
         {visual_context}
 
-        Transcript ({lang_name}):
+        Speaker's Speech Transcript ({lang_name}):
         "{transcript}"
-        
-        CRITICAL EVALUATION & BALANCED SCORING STANDARDS:
-        1. MINIMAL ATTEMPT (< 5 words):
-           - Only if the speaker literally said 1 to 4 words (e.g. "hello", "test", "hi"), assign an overall_score between 5 and 15 out of 100.
-        2. SPEECH EVALUATION TIERS (Fair & Balanced):
-           - 80-100 (Executive Orator): Excellent structure, compelling delivery, strong vocabulary, clear thesis, minimal fillers.
-           - 65-79 (Proficient Speaker): Clear communication, solid points, good flow, minor hesitations or small grammatical errors.
-           - 50-64 (Developing Speaker): Good effort, understandable ideas, noticeable filler words or informal phrasing, some repetition.
-           - 35-49 (Emerging Speaker): Frequent restarts, significant grammar or syntax issues, disjointed thoughts, but still an attempt to communicate.
-           - Below 35: Incoherent rambling, completely off-topic, or fewer than 15 words.
-        3. SPEECH-TO-TEXT TOLERANCE:
-           - The speech was captured via microphone. Account for natural spoken speech patterns, oral syntax, and slight acoustic transcription artifacts without unfairly slashing scores.
-        4. TOPIC RELEVANCE:
-           - Check if the speech genuinely attempts to address "{topic}". If completely off-topic, provide constructive feedback explaining how to align with the prompt.
-        5. ACCURATE MISTAKE IDENTIFICATION:
-           - In "mistakes", identify actual spoken grammatical errors, awkward phrases, or repetitive expressions from the transcript and provide clear, professional corrections.
 
-        Evaluate the speech across 10 dimensions:
-        1. Grammar (0-100)
-        2. Vocabulary (0-100)
-        3. Sentence Structure (0-100)
-        4. Communication (0-100)
-        5. Confidence (0-100)
-        6. Fluency (0-100)
-        7. Speaking Style
-        8. Professionalism
-        9. Speech Organization
-        10. Overall Quality (0-100)
+        EVALUATION INSTRUCTIONS:
+        1. SPEECH EVALUATION:
+           - Authoritatively evaluate the spoken speech based on content, clarity, thesis development, vocabulary, grammar, fluency, and vocal delivery.
+           - Account for natural spoken speech patterns, oral hesitation, and microphone speech-to-text acoustic artifacts.
+           - Assign fair, accurate, and realistic scores (0 to 100) reflecting the speaker's true performance.
+        2. WEBCAM & BODY LANGUAGE EVALUATION:
+           {f"- Analyze the speaker's webcam telemetry: eye contact ({visual_metrics.get('eye_contact_pct', 0)}%), posture stability ({visual_metrics.get('posture_score', 0)}/100), and facial expression variety ({visual_metrics.get('expression_variety_score', 0)}/100)." if has_webcam else "- Webcam was not active. Set presence_score to 0 and provide a friendly note in body_language_feedback explaining to enable camera for visual coaching."}
+           - Assign a dedicated `presence_score` (integer 0 to 100) evaluating their visual presence, camera engagement, and physical poise.
+           - Write a dedicated `body_language_feedback` paragraph evaluating their on-camera eye contact, physical posture, and facial animation with actionable executive advice.
+        3. MISTAKES & CORRECTIONS:
+           - In "mistakes", identify actual spoken grammatical mistakes or awkward phrasing verbatim from the transcript and provide clear, professional corrections with helpful explanations.
+        4. ENGLISH ONLY ENFORCEMENT:
+           - The entire evaluation, suggestions, and feedback MUST be in English.
 
-        Return ONLY valid JSON with exactly the following keys and data types:
+        Return ONLY a valid JSON object with exactly the following keys and data types:
         {{
             "overall_score": integer (0 to 100),
             "grammar_score": integer (0 to 100),
@@ -169,24 +159,28 @@ CRITICAL RULES:
             "vocabulary_score": integer (0 to 100),
             "communication_score": integer (0 to 100),
             "fluency_score": integer (0 to 100),
+            "presence_score": integer (0 to 100),
+            "body_language_feedback": "constructive, detailed evaluation of webcam visual presence, eye contact, posture, and facial expressions",
             "strengths": ["string", "string", "string"],
             "weaknesses": ["string", "string", "string"],
             "mistakes": [
                 {{"original": "EXACT verbatim phrase or sentence copied from the transcript with grammar/phrasing error", "correction": "recommended grammatical or professional correction", "reason": "explanation of why the original phrase is incorrect"}}
             ],
             "improvement_suggestions": ["string", "string", "string"],
-            "motivational_feedback": "honest, constructive paragraph about topic relevance, length, and speaking delivery",
+            "motivational_feedback": "honest, constructive, encouraging executive coaching paragraph",
             "practice_exercises": ["string exercise 1", "string exercise 2"]
         }}
 
         CRITICAL RULE FOR MISTAKES:
         - In "mistakes", every "original" string MUST BE AN EXACT SUBSTRING copied verbatim from the user's speech transcript. 
         - DO NOT invent, fabricate, or hallucinate sentences that the user did not say.
-        - ENGLISH ONLY ENFORCEMENT: The entire evaluation, suggestions, and feedback MUST be in English. If you detect words spoken in a language other than English, include them in the "mistakes" list. Set the "original" to the non-English text, the "correction" to the English equivalent, and the "reason" to "Please speak strictly in English for professional consistency."
         """
         try:
             from google.genai import types
-            config = types.GenerateContentConfig(response_mime_type="application/json")
+            config = types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.2
+            )
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=prompt,
@@ -460,17 +454,39 @@ CRITICAL RULES:
             "Vocabulary Upgrade: Take three common adjectives from your speech and replace them with stronger academic or professional synonyms."
         ]
 
-        if visual_metrics:
+        presence_score = 0
+        body_language_feedback = ""
+        if visual_metrics and visual_metrics.get("face_detected_pct", 0) > 0:
             eye_contact = visual_metrics.get("eye_contact_pct", 0)
-            if eye_contact > 80:
-                strengths.append(f"Excellent eye contact ({eye_contact}%). You maintained strong audience connection.")
-            elif eye_contact < 50:
-                weaknesses.append(f"Low eye contact ({eye_contact}%). Try to look directly at the camera more often.")
-                suggestions.append("Practice delivering your speech without heavily relying on your notes to improve eye contact.")
-            
             posture = visual_metrics.get("posture_score", 0)
-            if posture < 50:
-                weaknesses.append("High physical movement detected. Keep your posture stable and avoid drifting out of frame.")
+            expr = visual_metrics.get("expression_variety_score", 0)
+            presence_score = int(round((eye_contact * 0.4) + (posture * 0.4) + (expr * 0.2)))
+            
+            fb_parts = []
+            if eye_contact >= 75:
+                fb_parts.append(f"Strong eye contact ({eye_contact}%), maintaining direct engagement with the camera.")
+            elif eye_contact >= 50:
+                fb_parts.append(f"Moderate eye contact ({eye_contact}%); aim to look into the camera lens more consistently.")
+            else:
+                fb_parts.append(f"Low eye contact ({eye_contact}%); practice speaking directly to the camera rather than glancing away.")
+            
+            if posture >= 80:
+                fb_parts.append(f"Exceptional posture stability ({posture}/100) with solid physical poise.")
+            elif posture >= 60:
+                fb_parts.append(f"Fair posture stability ({posture}/100); minimize extraneous leaning or swaying.")
+            else:
+                fb_parts.append(f"Frequent physical movement detected ({posture}/100); center yourself in the camera frame.")
+            
+            if expr >= 40:
+                fb_parts.append(f"Good facial expressiveness ({expr}/100).")
+            else:
+                fb_parts.append(f"Facial expressions remained relatively flat ({expr}/100); practice engaging your facial expressions to match your words.")
+            
+            body_language_feedback = " ".join(fb_parts)
+            if eye_contact > 75:
+                strengths.append(f"Strong eye contact ({eye_contact}%), connecting directly with your audience.")
+            if posture > 75:
+                strengths.append(f"Steady physical posture ({posture}/100) providing calm on-camera composure.")
 
         return {
             "overall_score": overall,
@@ -479,6 +495,8 @@ CRITICAL RULES:
             "vocabulary_score": base_vocab,
             "communication_score": base_comm,
             "fluency_score": base_fluency,
+            "presence_score": presence_score,
+            "body_language_feedback": body_language_feedback,
             "strengths": strengths,
             "weaknesses": weaknesses,
             "mistakes": mistakes,
@@ -660,8 +678,7 @@ CRITICAL RULES:
                 if (len(topic_keywords) >= 2 and len(matched_kws) < 1) or overlap_ratio < 0.25:
                     is_off_topic = True
 
-        # 4. Strict Proportional Scoring Tiers based on Time Consumed & Total Words
-        # 4. Proportional Scoring Tiers based on Length & Structure
+        # Proportional Scoring Tiers based on Length & Structure
         if total_words < 5:
             # Saying only "hello", "hi", "test"
             score_val = max(5, min(15, total_words * 3))
@@ -687,70 +704,21 @@ CRITICAL RULES:
                 f"Your session received an Overall Score of {score_val}/100 because only {total_words} word(s) were recorded. "
                 f"Please deliver a complete speech addressing '{topic}' to get full feedback on your grammar, vocabulary, and delivery."
             )
-
-        elif total_words < 20:
-            # Very brief fragment (1 short sentence)
-            score_val = min(38, max(20, int(total_words * 1.8)))
-            data["overall_score"] = min(int(data.get("overall_score", score_val)), score_val)
-            for col in ["grammar_score", "vocabulary_score", "confidence_score", "fluency_score", "communication_score"]:
-                data[col] = min(int(data.get(col, 40)), 40)
-            
-            data["weaknesses"] = list(data.get("weaknesses", []))
-            time_msg = f"Brief Speech: Recorded {total_words} words. Expand with more supporting details and examples."
-            if not any("Brief" in w for w in data["weaknesses"]):
-                data["weaknesses"].insert(0, time_msg)
-
-        elif total_words < 40:
-            # Short Speech (20-39 words)
-            cap_score = min(60, max(38, int(data.get("overall_score", 50))))
-            data["overall_score"] = cap_score
-            for col in ["grammar_score", "vocabulary_score", "confidence_score", "fluency_score", "communication_score"]:
-                data[col] = min(int(data.get(col, 62)), 62)
-
-            data["weaknesses"] = list(data.get("weaknesses", []))
-            if time_utilization_pct < 60:
-                time_msg = f"Speaking Length: Delivered {total_words} words (~{estimated_seconds}s). Consider elaborating further to fill your target speaking time."
-                if not any("Speaking Length" in w for w in data["weaknesses"]):
-                    data["weaknesses"].append(time_msg)
-
-        elif is_off_topic:
-            # Off-topic penalty
-            data["overall_score"] = min(int(data.get("overall_score", 45)), 45)
-            data["communication_score"] = min(int(data.get("communication_score", 40)), 40)
-            data["weaknesses"] = list(data.get("weaknesses", []))
-            top_msg = f"Speech content did not align with the assigned topic: '{topic}'."
-            if not any("topic" in w.lower() for w in data["weaknesses"]):
-                data["weaknesses"].insert(0, top_msg)
-
         else:
-            # Standard Speech (40+ words)
-            # Evaluate based on Gemini's assessment, adjusting moderately for grammar error count
-            if grammar_error_count > 0:
-                deduction = min(15, grammar_error_count * 3)
-                data["grammar_score"] = max(35, int(data.get("grammar_score", 75)) - deduction)
-                data["overall_score"] = max(35, int(data.get("overall_score", 70)) - int(deduction * 0.4))
-
+            # Respect authentic Gemini AI Evaluation!
+            # Keep Gemini's evaluated scores for overall, grammar, vocabulary, confidence, fluency, communication, and presence.
             data["strengths"] = list(data.get("strengths", []))
             data["weaknesses"] = list(data.get("weaknesses", []))
-
-            if time_utilization_pct >= 75:
-                time_str = f"Strong time management: consumed {estimated_seconds}s of your target duration ({wpm_pace} WPM)."
-                if not any("time" in s.lower() for s in data["strengths"]):
-                    data["strengths"].insert(0, time_str)
-            elif time_utilization_pct < 60:
-                time_wk = f"Speaking Length: Spoke for ~{estimated_seconds}s out of {duration_seconds}s target duration ({time_utilization_pct}% utilized). Expand your key points for greater impact."
-                if not any("Speaking Length" in w for w in data["weaknesses"]):
-                    data["weaknesses"].append(time_wk)
-
-            if wpm_pace > (ideal_max_wpm + 30):
-                data["weaknesses"].append(f"Speaking pace was very rapid ({wpm_pace} WPM); aim for {ideal_min_wpm}-{ideal_max_wpm} WPM for optimal clarity.")
-            elif wpm_pace < (ideal_min_wpm - 35) and total_words >= 30:
-                data["weaknesses"].append(f"Speaking pace was slightly slow ({wpm_pace} WPM); aim for a steady {ideal_min_wpm}-{ideal_max_wpm} WPM.")
+            data["improvement_suggestions"] = list(data.get("improvement_suggestions", []))
 
         # Ensure all scores are strictly bounded 0-100 and integers
-        for k in ["overall_score", "grammar_score", "vocabulary_score", "confidence_score", "fluency_score", "communication_score"]:
+        for k in ["overall_score", "grammar_score", "vocabulary_score", "confidence_score", "fluency_score", "communication_score", "presence_score"]:
             val = int(data.get(k, 0))
             data[k] = max(0, min(100, val))
+
+        # Ensure strings and feedback fields are valid
+        if not data.get("body_language_feedback"):
+            data["body_language_feedback"] = ""
 
         return data
 
@@ -772,6 +740,8 @@ CRITICAL RULES:
             "vocabulary_score": 0,
             "communication_score": 0,
             "fluency_score": 0,
+            "presence_score": 0,
+            "body_language_feedback": "",
             "strengths": ["Microphone active and recording ready"],
             "weaknesses": ["No speech transcript was detected in this practice session"],
             "mistakes": [],
