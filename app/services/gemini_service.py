@@ -46,18 +46,63 @@ class GeminiSpeechAnalyzer:
         if not transcript or not transcript.strip():
             return self._empty_response()
 
+        # Reconstruct & correct phonetic STT transcription slips (e.g. 'song dear engineer' -> 'software engineer')
+        refined_transcript = self.refine_stt_transcript(transcript, topic_title)
+
         raw_data = None
         if self.client and self.api_key:
             try:
-                raw_data = self._analyze_with_gemini(transcript, topic_title, duration_seconds, language, visual_metrics)
+                raw_data = self._analyze_with_gemini(refined_transcript, topic_title, duration_seconds, language, visual_metrics)
             except Exception as e:
                 # Fallback to intelligent NLP analysis if Gemini API fails
-                raw_data = self._fallback_nlp_analysis(transcript, topic_title, duration_seconds, language, visual_metrics)
+                raw_data = self._fallback_nlp_analysis(refined_transcript, topic_title, duration_seconds, language, visual_metrics)
         else:
-            raw_data = self._fallback_nlp_analysis(transcript, topic_title, duration_seconds, language, visual_metrics)
+            raw_data = self._fallback_nlp_analysis(refined_transcript, topic_title, duration_seconds, language, visual_metrics)
 
         # Apply strict universal evaluation, grammar checking, and score validation rules
-        return self._apply_strict_speech_evaluation_rules(raw_data, transcript, topic_title, duration_seconds, language)
+        evaluated = self._apply_strict_speech_evaluation_rules(raw_data, refined_transcript, topic_title, duration_seconds, language)
+        evaluated["cleaned_transcript"] = refined_transcript
+        return evaluated
+
+    def refine_stt_transcript(self, raw_transcript: str, topic: str = "") -> str:
+        """
+        Reconstructs and corrects phonetic speech-to-text transcription errors
+        (e.g., 'song dear engineer' -> 'software engineer', 'poets and' -> 'points and')
+        while preserving the user's authentic sentence phrasing and natural disfluencies/fillers.
+        """
+        if not raw_transcript or len(raw_transcript.strip()) < 5:
+            return raw_transcript
+
+        if not self.client or not self.api_key:
+            return raw_transcript
+
+        prompt = f"""You are an expert AI speech recognition post-processor.
+The speaker delivered a spoken speech on the topic: "{topic}".
+Their microphone captured this raw speech-to-text transcript with common phonetic errors, homophones, and misheard words:
+"{raw_transcript}"
+
+Task:
+Reconstruct and correct the phonetic speech-to-text transcription errors (e.g., "song dear engineer" -> "software engineer", "the poets and" -> "the points and") to accurately reflect what the speaker actually spoke.
+CRITICAL RULES:
+- Fix ONLY misheard words / phonetic transcription slips caused by microphone or accents.
+- DO NOT invent new arguments or change the speaker's intended meaning.
+- PRESERVE the speaker's authentic sentence structure, grammar, and natural filler words (like 'um', 'uh', 'like', 'you know').
+- Return ONLY the corrected transcript text. No intro, no markdown quotes, no explanations.
+"""
+        try:
+            from google.genai import types
+            config = types.GenerateContentConfig(temperature=0.1)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=config,
+            )
+            cleaned = (response.text or "").strip()
+            if cleaned and len(cleaned) >= len(raw_transcript) * 0.5:
+                return cleaned
+        except Exception as e:
+            self.logger.warning(f"Error refining STT transcript: {e}")
+        return raw_transcript
 
     def _analyze_with_gemini(self, transcript: str, topic: str, duration_seconds: int = 60, language: str = "en-US", visual_metrics: dict = None) -> dict:
         """

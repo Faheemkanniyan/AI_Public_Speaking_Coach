@@ -126,6 +126,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const btnSpinRoulette = document.getElementById("btnSpinRoulette");
   const btnAnalyze = document.getElementById("btnAnalyzeSpeech");
   const btnDemoText = document.getElementById("btnDemoText");
+  const btnRefine = document.getElementById("btnRefineTranscript");
 
   if (btnStart) btnStart.addEventListener("click", startCountdownAndRecord);
   if (btnStop) btnStop.addEventListener("click", stopRecording);
@@ -133,6 +134,7 @@ document.addEventListener("DOMContentLoaded", function () {
   if (btnSpinRoulette) btnSpinRoulette.addEventListener("click", () => spinTopicRoulette(currentCategory));
   if (btnAnalyze) btnAnalyze.addEventListener("click", submitSpeechForAnalysis);
   if (btnDemoText) btnDemoText.addEventListener("click", populateDemoSpeech);
+  if (btnRefine) btnRefine.addEventListener("click", () => refineTranscriptWithAI(true));
 
 
   // 1. Setup Category Filter Pills
@@ -561,10 +563,19 @@ function stopRecording() {
     btnStart.textContent = "Resume / Re-record";
   }
   if (micStatus) {
-    micStatus.innerHTML = `<i class="bi bi-check-circle-fill text-success me-1"></i> Recording stopped. You can review or edit the transcript below before AI evaluation.`;
+    micStatus.innerHTML = `<i class="bi bi-check-circle-fill text-success me-1"></i> Recording finished! Reached end of speech. You can review, polish, or analyze below.`;
   }
 
   initEmptyWaveCanvas();
+
+  // Auto-polish whenever the speaker finishes and reaches the end of speech
+  const transcriptBox = document.getElementById("transcriptTextarea");
+  if (transcriptBox) {
+    const curVal = (transcriptBox.tagName.toLowerCase() === "textarea" ? transcriptBox.value : transcriptBox.innerText || "").trim();
+    if (curVal.length >= 8) {
+      refineTranscriptWithAI(false);
+    }
+  }
 }
 
 /**
@@ -582,6 +593,12 @@ function resetRecording() {
   if (transcriptBox) {
     transcriptBox.value = "";
     transcriptBox.innerHTML = "";
+  }
+  const refinedBadge = document.getElementById("refinedBadge");
+  if (refinedBadge) refinedBadge.classList.add("d-none");
+  const sttStatus = document.getElementById("sttStatusText");
+  if (sttStatus) {
+    sttStatus.innerHTML = `<i class="bi bi-info-circle me-1"></i> Transcribing live. When you reach the end of your speech, click <strong>"✨ AI Polish Transcript"</strong> (or Stop) to fix misheard words.`;
   }
   const btnStart = document.getElementById("btnStartRecord");
   if (btnStart) btnStart.textContent = "Start Recording";
@@ -601,6 +618,7 @@ function setupSpeechRecognition() {
   recognition = new SpeechRecognition();
   recognition.continuous = true;
   recognition.interimResults = true;
+  recognition.maxAlternatives = 3;
   recognition.lang = window.selectedLanguage || "en-US";
 
   const transcriptBox = document.getElementById("transcriptTextarea");
@@ -755,6 +773,12 @@ function startSpeechTimer() {
   speechTimerInterval = setInterval(() => {
     elapsedSeconds++;
     updateTimerDisplay(elapsedSeconds);
+
+    const targetTotal = window.selectedDurationSeconds || 60;
+    if (elapsedSeconds === targetTotal) {
+      showToast(`🎯 Target speaking duration reached (${formatDurationLabel(targetTotal)})! You can wrap up or finish now.`, "success");
+      if (navigator.vibrate) navigator.vibrate([150, 100, 150]);
+    }
   }, 1000);
 }
 
@@ -772,7 +796,78 @@ function updateTimerDisplay(seconds) {
   const targetMins = Math.floor(targetTotal / 60).toString().padStart(2, "0");
   const targetSecs = (targetTotal % 60).toString().padStart(2, "0");
 
-  timerEl.textContent = `${mins}:${secs} / ${targetMins}:${targetSecs}`;
+  if (seconds >= targetTotal) {
+    timerEl.innerHTML = `${mins}:${secs} / ${targetMins}:${targetSecs} <span class="badge bg-success ms-1">🎯 Target Reached</span>`;
+  } else {
+    timerEl.textContent = `${mins}:${secs} / ${targetMins}:${targetSecs}`;
+  }
+}
+
+/**
+ * 8.1 AI Transcript Refinement (corrects phonetic mishearings when reaching end of speech)
+ */
+async function refineTranscriptWithAI(isManual = false) {
+  const transcriptBox = document.getElementById("transcriptTextarea");
+  if (!transcriptBox) return;
+
+  const currentText = (transcriptBox.tagName.toLowerCase() === "textarea" 
+    ? transcriptBox.value 
+    : (transcriptBox.innerText || transcriptBox.textContent || "")).trim();
+
+  if (!currentText || currentText.length < 5) {
+    if (isManual) showToast("Please speak or enter text first before polishing.", "info");
+    return;
+  }
+
+  const btnRefine = document.getElementById("btnRefineTranscript");
+  const sttStatus = document.getElementById("sttStatusText");
+  const refinedBadge = document.getElementById("refinedBadge");
+
+  if (btnRefine) {
+    btnRefine.disabled = true;
+    btnRefine.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> Polishing...`;
+  }
+  if (sttStatus) {
+    sttStatus.innerHTML = `<span class="text-primary"><i class="bi bi-magic me-1"></i> AI is auto-correcting speech-to-text mishearings...</span>`;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append("transcript", currentText);
+    formData.append("topic_title", currentTopicTitle || "General Practice");
+
+    const response = await fetch("/api/speech/refine-transcript/", {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-CSRFToken": getCsrfToken()
+      }
+    });
+
+    const data = await response.json();
+    if (data.status === "success" && data.refined_transcript) {
+      if (transcriptBox.tagName.toLowerCase() === "textarea") {
+        transcriptBox.value = data.refined_transcript;
+      } else {
+        transcriptBox.innerHTML = highlightErrors(data.refined_transcript);
+        transcriptBox.scrollTop = transcriptBox.scrollHeight;
+      }
+      if (refinedBadge) refinedBadge.classList.remove("d-none");
+      if (sttStatus) {
+        sttStatus.innerHTML = `<span class="text-success"><i class="bi bi-check2-circle me-1"></i> AI polished! Phonetic mishearings corrected accurately.</span>`;
+      }
+      if (isManual) {
+        showToast("✨ Speech transcript refined by AI! Misheard words corrected.", "success");
+      }
+    }
+  } catch (err) {
+    console.error("Refine transcript error:", err);
+  } finally {
+    if (btnRefine) {
+      btnRefine.disabled = false;
+      btnRefine.innerHTML = `<i class="bi bi-stars me-1"></i> ✨ AI Polish Transcript`;
+    }
+  }
 }
 
 /**

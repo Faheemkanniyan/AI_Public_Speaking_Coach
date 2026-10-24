@@ -156,6 +156,11 @@ class SpeechService:
         analyzer = GeminiSpeechAnalyzer()
         ai_data = analyzer.analyze_speech(transcript_text, session.topic_title, duration_seconds=session.duration_seconds, language=language, visual_metrics=visual_metrics)
 
+        # Update session transcript to the accurate reconstructed transcript
+        if ai_data.get("cleaned_transcript"):
+            session.transcript = ai_data["cleaned_transcript"]
+            session.save()
+
         # Create SpeechReport
         report = SpeechReport.objects.create(
             session=session,

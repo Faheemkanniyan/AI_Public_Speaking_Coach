@@ -57,6 +57,34 @@ def api_random_topic(request):
 
 @require_POST
 @login_required
+def api_refine_transcript(request):
+    """
+    POST endpoint to refine raw speech-to-text transcript from microphone.
+    Corrects phonetic mishearings (e.g. 'song dear engineer' -> 'software engineer')
+    while preserving authentic speech and disfluencies.
+    """
+    try:
+        raw_transcript = request.POST.get("transcript", "").strip()
+        topic = request.POST.get("topic_title", "General Practice")
+        
+        if not raw_transcript:
+            return JsonResponse({"status": "error", "message": "Transcript is empty."}, status=400)
+            
+        from .services.gemini_service import GeminiSpeechAnalyzer
+        analyzer = GeminiSpeechAnalyzer()
+        refined = analyzer.refine_stt_transcript(raw_transcript, topic)
+        
+        return JsonResponse({
+            "status": "success",
+            "refined_transcript": refined,
+            "original_transcript": raw_transcript
+        })
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@require_POST
+@login_required
 def api_speech_analyze(request):
     """
     POST endpoint to evaluate a speech session.

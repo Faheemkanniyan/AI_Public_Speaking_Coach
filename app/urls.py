@@ -42,6 +42,7 @@ urlpatterns = [
 
     # REST API endpoints
     path('api/topics/random/', api_views.api_random_topic, name='api_random_topic'),
+    path('api/speech/refine-transcript/', api_views.api_refine_transcript, name='api_refine_transcript'),
     path('api/speech/analyze/', api_views.api_speech_analyze, name='api_speech_analyze'),
     path('api/speech/generate-tts/<int:session_id>/', api_views.api_generate_tts, name='api_generate_tts'),
     path('api/coach/chat/', api_views.api_coach_chat, name='api_coach_chat'),
