@@ -249,10 +249,6 @@ def practice_view(request):
     
     languages = [
         {"code": "en-US", "name": "English"},
-        {"code": "ml-IN", "name": "Malayalam"},
-        {"code": "hi-IN", "name": "Hindi"},
-        {"code": "ta-IN", "name": "Tamil"},
-        {"code": "kn-IN", "name": "Kannada"},
     ]
     coaching_pref, _ = CoachingPreference.objects.get_or_create(user=request.user)
 
@@ -417,9 +413,9 @@ def profile_view(request):
 @login_required
 def ai_coach_view(request):
     """
-    Interactive AI Coach chat assistant page.
+    AI Coach feature has been removed. Redirect to dashboard.
     """
-    return render(request, "ai_coach.html")
+    return redirect("dashboard")
 
 
 @login_required

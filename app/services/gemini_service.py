@@ -30,7 +30,7 @@ class GeminiSpeechAnalyzer:
         if self.api_key and GENAI_AVAILABLE:
             try:
                 self.client = genai.Client(api_key=self.api_key)
-                self.model_name = "gemini-3.8-flash"
+                self.model_name = "gemini-3.5-flash-lite"
             except Exception:
                 self.client = None
                 self.model_name = None
@@ -63,13 +63,8 @@ class GeminiSpeechAnalyzer:
         """
         Calls Google Gemini API with a structured prompt including topic relevance, target duration, language, and visual metrics.
         """
-        lang_name = "Hindi (हिंदी)" if language == "hi-IN" else ("Malayalam (മലയാളം)" if language == "ml-IN" else "English")
-        if language == "hi-IN":
-            expected_wpm = "100-130 WPM"
-        elif language == "ml-IN":
-            expected_wpm = "80-110 WPM"
-        else:
-            expected_wpm = "120-150 WPM"
+        lang_name = "English"
+        expected_wpm = "120-150 WPM"
 
         visual_context = ""
         if visual_metrics:
@@ -148,13 +143,21 @@ class GeminiSpeechAnalyzer:
         CRITICAL RULE FOR MISTAKES:
         - In "mistakes", every "original" string MUST BE AN EXACT SUBSTRING copied verbatim from the user's speech transcript. 
         - DO NOT invent, fabricate, or hallucinate sentences that the user did not say.
-        - STRICTLY identify real sentence errors, grammar mistakes, repetitive words, filler phrases, or awkward syntax in their spoken transcript.
-        - MIXED LANGUAGE RULE: If you detect words or sentences spoken in a language OTHER than {lang_name} (for example, Hindi or regional text mixed into an English speech), you MUST include them in the "mistakes" list. Set the "original" to the foreign text, the "correction" to the translated {lang_name} equivalent, and the "reason" to "Translated to the target language for professional consistency."
+        - ENGLISH ONLY ENFORCEMENT: The entire evaluation, suggestions, and feedback MUST be in English. If you detect words spoken in a language other than English, include them in the "mistakes" list. Set the "original" to the non-English text, the "correction" to the English equivalent, and the "reason" to "Please speak strictly in English for professional consistency."
         """
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=prompt,
-        )
+        try:
+            from google.genai import types
+            config = types.GenerateContentConfig(response_mime_type="application/json")
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=config,
+            )
+        except Exception:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+            )
         text = response.text.strip()
         # Remove markdown fence if present
         if text.startswith("```json"):
@@ -176,13 +179,7 @@ class GeminiSpeechAnalyzer:
         unique_words = len(set(words))
         lexical_diversity = unique_words / total_words
 
-        # Language-specific configurations
-        if language == "hi-IN":
-            filler_list = ["मतलब", "जैसे", "तो", "उम्म", "आ"]
-        elif language == "ml-IN":
-            filler_list = ["ഉം", "അതായത്", "പിന്നെ", "ആ"]
-        else:
-            filler_list = ["um", "uh", "like", "literally", "basically", "actually", "so", "right", "you know", "i mean"]
+        filler_list = ["um", "uh", "like", "literally", "basically", "actually", "so", "right", "you know", "i mean"]
 
         filler_count = 0
         detected_fillers = []
@@ -221,12 +218,7 @@ class GeminiSpeechAnalyzer:
         topic_clean = topic.strip().lower()
         is_off_topic = False
         if topic_clean not in ["general topic", "general practice", "free speech", "unassigned", ""]:
-            if language == "hi-IN":
-                stop_words = {"क्या", "कब", "कहाँ", "कौन", "कैसे", "है", "था", "और", "या", "की", "का", "से", "में"}
-            elif language == "ml-IN":
-                stop_words = {"എന്ത്", "എപ്പോൾ", "എവിടെ", "ആര്", "എങ്ങനെ", "ആണ്", "ആയിരുന്നു", "ഒരു", "ഈ", "ആ"}
-            else:
-                stop_words = {"what", "when", "where", "which", "who", "whom", "whose", "why", "how", "with", "have", "from", "that", "this", "your", "more", "some", "like", "about", "into", "through", "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "well", "being"}
+            stop_words = {"what", "when", "where", "which", "who", "whom", "whose", "why", "how", "with", "have", "from", "that", "this", "your", "more", "some", "like", "about", "into", "through", "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "well", "being"}
             
             topic_keywords = [w for w in re.findall(r'\b\w+\b', topic_clean) if len(w) >= 4 and w not in stop_words]
             if topic_keywords:
@@ -598,13 +590,7 @@ class GeminiSpeechAnalyzer:
         time_utilization_pct = min(100, int((estimated_seconds / duration_seconds) * 100))
         wpm_pace = int((total_words / max(2.0, estimated_seconds)) * 60) if total_words > 0 else 0
 
-        # 2. Setup Language-specific WPM expectations
-        if language == "hi-IN":
-            ideal_min_wpm, ideal_max_wpm = 100, 130
-        elif language == "ml-IN":
-            ideal_min_wpm, ideal_max_wpm = 80, 110
-        else:
-            ideal_min_wpm, ideal_max_wpm = 120, 150
+        ideal_min_wpm, ideal_max_wpm = 120, 150
 
         # 3. Detect Grammar & Syntax Mistakes
         detected_grammar_mistakes = self._detect_grammar_and_syntax_mistakes(transcript)

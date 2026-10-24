@@ -118,29 +118,17 @@ class AssemblyAIService:
         words = re.findall(r'\b\w+\b', text.lower())
         total_words = max(1, len(words))
 
-        # Detect language based on unicode ranges
-        if re.search(r'[\u0900-\u097F]', text):
-            language = "hi-IN"
-            filler_list = ["मतलब", "जैसे", "तो", "उम्म", "आ"]
-            stt_fixes = []
-            fw_to_remove = ["मतलब", "जैसे", "तो", "उम्म", "आ"]
-        elif re.search(r'[\u0D00-\u0D7F]', text):
-            language = "ml-IN"
-            filler_list = ["ഉം", "അതായത്", "പിന്നെ", "ആ"]
-            stt_fixes = []
-            fw_to_remove = ["ഉം", "അതായത്", "പിന്നെ", "ആ"]
-        else:
-            language = "en-US"
-            filler_list = FILLER_WORDS_LIST
-            stt_fixes = [
-                (r'\bthe amputation is the most one thing in my our brain\b', 'ambition is a primary focus in our mind', 'Improved articulation and clarity'),
-                (r'\bmy our\b', 'our', 'Removed duplicate pronoun'),
-                (r'\bsomething like that\b', 'and related factors', 'Replaced informal qualifier with executive phrasing'),
-                (r'\bmore to tall\b', 'more to share', 'Corrected word choice error'),
-                (r'\bdo to call me\b', 'to discuss with me', 'Corrected spoken syntax fragment'),
-                (r'\bshould actually good\b', 'should actually be effective', 'Added missing auxiliary verb')
-            ]
-            fw_to_remove = ["actually", "literally", "basically", "um", "uh", "like"]
+        language = "en-US"
+        filler_list = FILLER_WORDS_LIST
+        stt_fixes = [
+            (r'\bthe amputation is the most one thing in my our brain\b', 'ambition is a primary focus in our mind', 'Improved articulation and clarity'),
+            (r'\bmy our\b', 'our', 'Removed duplicate pronoun'),
+            (r'\bsomething like that\b', 'and related factors', 'Replaced informal qualifier with executive phrasing'),
+            (r'\bmore to tall\b', 'more to share', 'Corrected word choice error'),
+            (r'\bdo to call me\b', 'to discuss with me', 'Corrected spoken syntax fragment'),
+            (r'\bshould actually good\b', 'should actually be effective', 'Added missing auxiliary verb')
+        ]
+        fw_to_remove = ["actually", "literally", "basically", "um", "uh", "like"]
 
         breakdown_dict = {}
         total_fillers = 0

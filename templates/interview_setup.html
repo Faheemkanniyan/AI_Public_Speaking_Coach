@@ -80,12 +80,12 @@
 
           <div class="mb-4">
             <label class="form-label fw-bold" style="color: #1C1B18;">6. Interview Language</label>
-            <select name="interview_language" class="form-select form-select-lg bg-light" required>
-              <option value="English" selected>English</option>
-              <option value="Malayalam">Malayalam</option>
-              <option value="Hindi">Hindi</option>
-            </select>
-            <div class="form-text mt-2">This is the language the AI will use to ask questions and evaluate your responses.</div>
+            <div class="input-group">
+              <span class="input-group-text bg-light border-end-0"><i class="bi bi-translate text-primary"></i></span>
+              <input type="text" class="form-control form-control-lg bg-light border-start-0" value="English (en-US)" readonly>
+              <input type="hidden" name="interview_language" value="English">
+            </div>
+            <div class="form-text mt-2">All interview questions and AI evaluations are conducted in professional English.</div>
           </div>
 
           <div class="d-grid mt-5">

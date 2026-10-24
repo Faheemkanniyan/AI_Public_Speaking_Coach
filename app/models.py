@@ -72,14 +72,7 @@ class SpeechSession(models.Model):
 
     @property
     def language_display_name(self):
-        mapping = {
-            "en-US": "English",
-            "hi-IN": "Hindi",
-            "ml-IN": "Malayalam",
-            "ta-IN": "Tamil",
-            "kn-IN": "Kannada"
-        }
-        return mapping.get(self.language, self.language)
+        return "English"
 
 class SpeechReport(models.Model):
     """

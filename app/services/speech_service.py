@@ -54,32 +54,21 @@ class SpeechService:
         if audio_file:
             audio_path = self.save_audio_file(audio_file, user.id)
 
-            # Use AssemblyAI for highly accurate transcription & automatic language detection
-            try:
-                from app.services.assemblyai_service import AssemblyAIService
-                aai_service = AssemblyAIService()
-                if aai_service.is_enabled():
-                    full_audio_path = os.path.join(settings.BASE_DIR, audio_path)
-                    aai_result = aai_service.transcribe_audio(full_audio_path)
-                    if aai_result.get("status") == "completed" and aai_result.get("text"):
-                        transcript_text = aai_result.get("text", transcript_text)
-                        
-                        # Use AssemblyAI's auto-detected language to override the frontend's language selection
-                        detected_lang = aai_result.get("language_code", "")
-                        if detected_lang:
-                            if detected_lang.startswith("hi"):
-                                language = "hi-IN"
-                            elif detected_lang.startswith("ml"):
-                                language = "ml-IN"
-                            elif detected_lang.startswith("ta"):
-                                language = "ta-IN"
-                            elif detected_lang.startswith("kn"):
-                                language = "kn-IN"
-                            elif detected_lang.startswith("en"):
-                                language = "en-US"
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning(f"AssemblyAI transcription fallback: {e}")
+            # Use AssemblyAI for transcription only if transcript was not captured by browser Web Speech API
+            if not transcript_text or not transcript_text.strip():
+                try:
+                    from app.services.assemblyai_service import AssemblyAIService
+                    aai_service = AssemblyAIService()
+                    if aai_service.is_enabled():
+                        full_audio_path = os.path.join(settings.BASE_DIR, audio_path)
+                        aai_result = aai_service.transcribe_audio(full_audio_path)
+                        if aai_result.get("status") == "completed" and aai_result.get("text"):
+                            transcript_text = aai_result.get("text", transcript_text)
+                            
+                            language = "en-US"
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"AssemblyAI transcription fallback: {e}")
 
         session = SpeechSession.objects.create(
             user=user,
@@ -122,6 +111,12 @@ class SpeechService:
         
         session = SpeechSession.objects.get(id=session_id)
         user = session.user
+        
+        # If report already exists, return immediately
+        existing_report = SpeechReport.objects.filter(session=session).first()
+        if existing_report:
+            return session, existing_report
+
         transcript_text = session.transcript
         language = session.language
         
@@ -137,7 +132,7 @@ class SpeechService:
             }
 
         audio_path = session.audio_file.name if session.audio_file else ""
-        if audio_path:
+        if audio_path and (not transcript_text or not transcript_text.strip()):
             try:
                 from app.services.assemblyai_service import AssemblyAIService
                 aai_service = AssemblyAIService()
@@ -147,18 +142,7 @@ class SpeechService:
                     if aai_result.get("status") == "completed" and aai_result.get("text"):
                         transcript_text = aai_result.get("text", transcript_text)
                         
-                        detected_lang = aai_result.get("language_code", "")
-                        if detected_lang:
-                            if detected_lang.startswith("hi"):
-                                language = "hi-IN"
-                            elif detected_lang.startswith("ml"):
-                                language = "ml-IN"
-                            elif detected_lang.startswith("ta"):
-                                language = "ta-IN"
-                            elif detected_lang.startswith("kn"):
-                                language = "kn-IN"
-                            elif detected_lang.startswith("en"):
-                                language = "en-US"
+                        language = "en-US"
                         
                         session.transcript = transcript_text
                         session.language = language

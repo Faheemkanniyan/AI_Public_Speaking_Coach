@@ -60,15 +60,16 @@ def interview_question_view(request, session_id, question_id):
         audio_path = ""
         if audio_file:
             audio_path = speech_service.save_audio_file(audio_file, request.user.id)
-            try:
-                aai_service = AssemblyAIService()
-                if aai_service.is_enabled():
-                    full_audio_path = os.path.join(settings.BASE_DIR, audio_path)
-                    aai_result = aai_service.transcribe_audio(full_audio_path)
-                    if aai_result.get("status") == "completed" and aai_result.get("text"):
-                        transcript = aai_result.get("text", transcript)
-            except Exception:
-                pass
+            if not transcript or not transcript.strip():
+                try:
+                    aai_service = AssemblyAIService()
+                    if aai_service.is_enabled():
+                        full_audio_path = os.path.join(settings.BASE_DIR, audio_path)
+                        aai_result = aai_service.transcribe_audio(full_audio_path)
+                        if aai_result.get("status") == "completed" and aai_result.get("text"):
+                            transcript = aai_result.get("text", transcript)
+                except Exception:
+                    pass
         
         service = InterviewService()
         word_count = len(transcript.split())

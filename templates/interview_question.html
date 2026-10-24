@@ -155,12 +155,7 @@
     recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = '{{ session.interview_language|default:"en-US" }}';
-    
-    // Map backend language to correct code
-    if (recognition.lang === "Hindi") recognition.lang = 'hi-IN';
-    else if (recognition.lang === "Malayalam") recognition.lang = 'ml-IN';
-    else if (recognition.lang === "English") recognition.lang = 'en-US';
+    recognition.lang = 'en-US';
 
     recognition.onresult = function(event) {
       let interimTranscript = '';
@@ -293,12 +288,7 @@
         
         const utterance = new SpeechSynthesisUtterance(questionText);
         
-        let langCode = 'en-US';
-        const sessionLang = '{{ session.interview_language|default:"English" }}';
-        if (sessionLang === 'Hindi') langCode = 'hi-IN';
-        else if (sessionLang === 'Malayalam') langCode = 'ml-IN';
-        
-        utterance.lang = langCode;
+        utterance.lang = 'en-US';
         utterance.rate = 0.95; // Slightly slower, professional tone
         utterance.pitch = 1.0;
         

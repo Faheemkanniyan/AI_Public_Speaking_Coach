@@ -41,7 +41,7 @@ let visualMetricsData = null;
 
 /**
  * RICH CURATED SUBTOPICS LIBRARY FOR TOPIC ROULETTE EFFECT
- * Over 60 subtopics across 6 distinct categories in English, Hindi, and Malayalam
+ * Over 60 subtopics across 6 distinct categories in English
  */
 const TOPIC_ROULETTE_LIBRARY = {
   technology: [
@@ -118,95 +118,6 @@ const TOPIC_ROULETTE_LIBRARY = {
   ]
 };
 
-const TOPIC_ROULETTE_LIBRARY_HI = {
-  technology: [
-    { title: "क्या आर्टिफिशियल इंटेलिजेंस अगले 10 वर्षों में भारत में नौकरियों का भविष्य बदल देगा?", category: "AI & Technology", difficulty: "Advanced" },
-    { title: "साइबर सुरक्षा में आज दुनिया के सामने सबसे बड़ी चुनौतियां क्या हैं?", category: "AI & Technology", difficulty: "Advanced" },
-    { title: "क्या भविष्य में एआई और मानव रचनात्मकता एक साथ काम कर पाएंगे?", category: "AI & Technology", difficulty: "Intermediate" },
-    { title: "क्लाउड कंप्यूटिंग और आधुनिक तकनीक भारत के विकास में क्या योगदान दे रहे हैं?", category: "AI & Technology", difficulty: "Intermediate" },
-    { title: "ऑनलाइन गोपनीयता और व्यक्तिगत डेटा सुरक्षा के बीच संतुलन कैसे बनाए रखें?", category: "AI & Technology", difficulty: "Advanced" }
-  ],
-  science: [
-    { title: "इक्कीसवीं सदी की सबसे महत्वपूर्ण वैज्ञानिक खोज क्या है?", category: "Science & Future", difficulty: "Intermediate" },
-    { title: "जलवायु परिवर्तन को रोकने के लिए स्वच्छ ऊर्जा क्यों आवश्यक है?", category: "Science & Future", difficulty: "Intermediate" },
-    { title: "अंतरिक्ष अनुसंधान और चंद्रयान मिशन मानवता के लिए क्यों महत्वपूर्ण हैं?", category: "Science & Future", difficulty: "Advanced" },
-    { title: "वैज्ञानिक अनुसंधान और अनुसंधान में निवेश देश की समृद्धि के लिए क्यों जरूरी है?", category: "Science & Future", difficulty: "Intermediate" },
-    { title: "भविष्य में क्वांटम कंप्यूटिंग विज्ञान और सुरक्षा को कैसे बदलेगी?", category: "Science & Future", difficulty: "Expert" }
-  ],
-  leadership: [
-    { title: "अनिश्चितता के समय में अपनी टीम का नेतृत्व और प्रेरणा कैसे दें?", category: "Executive Leadership", difficulty: "Advanced" },
-    { title: "एक अच्छे प्रबंधक और एक महान रणनीतिक नेता में क्या अंतर है?", category: "Executive Leadership", difficulty: "Advanced" },
-    { title: "कार्यस्थल पर आपसी विश्वास और ईमानदारी का माहौल कैसे बनाएं?", category: "Executive Leadership", difficulty: "Intermediate" },
-    { title: "किसी संकट के समय धैर्य और आत्मविश्वास कैसे बनाए रखें?", category: "Executive Leadership", difficulty: "Expert" },
-    { title: "प्रभावी संवाद किसी भी संगठन की सफलता का मूल मंत्र क्यों है?", category: "Executive Leadership", difficulty: "Intermediate" }
-  ],
-  general: [
-    { title: "अपने जीवन की सबसे बड़ी व्यक्तिगत या व्यावसायिक उपलब्धि के बारे में बताएं।", category: "Personal Growth", difficulty: "Intermediate" },
-    { title: "आपके जीवन का एक ऐसा अनुभव जिसने आपको असफलता से लड़ना सिखाया।", category: "Personal Growth", difficulty: "Intermediate" },
-    { title: "आपके अनुसार सच्चे नेतृत्व और सफलता का वास्तविक अर्थ क्या है?", category: "Personal Growth", difficulty: "Beginner" },
-    { title: "मानसिक शांति और व्यावसायिक सफलता के बीच संतुलन कैसे बनाएं?", category: "Personal Growth", difficulty: "Intermediate" },
-    { title: "जीवन में लगातार सीखना और स्वयं का विकास क्यों महत्वपूर्ण है?", category: "Personal Growth", difficulty: "Beginner" }
-  ],
-  business: [
-    { title: "क्या वैश्विक कंपनियों को लाभ से अधिक सामाजिक जिम्मेदारी को महत्व देना चाहिए?", category: "Business & Ethics", difficulty: "Advanced" },
-    { title: "रिमोट और हाइब्रिड काम करने के तरीके से व्यवसाय पर क्या प्रभाव पड़ा है?", category: "Business & Ethics", difficulty: "Intermediate" },
-    { title: "आधुनिक व्यवसाय में ग्राहक का विश्वास जीतना क्यों सबसे जरूरी है?", category: "Business & Ethics", difficulty: "Intermediate" },
-    { title: "व्यवसाय में ईमानदारी और पारदर्शिता सबसे मूल्यवान संपत्ति क्यों है?", category: "Business & Ethics", difficulty: "Advanced" },
-    { title: "स्टार्टअप्स नई सोच और तेजी से बड़े उद्योगों को कैसे चुनौती दे रहे हैं?", category: "Business & Ethics", difficulty: "Intermediate" }
-  ],
-  fun: [
-    { title: "कल्पना करें कि आप समय यात्रा कर सकते हैं, आप किस ऐतिहासिक काल में जाएंगे और क्यों?", category: "Impromptu Fun", difficulty: "Beginner" },
-    { title: "अगर आपको किसी परग्रही सभ्यता से बात करने का पहला मौका मिले, तो आप क्या कहेंगे?", category: "Impromptu Fun", difficulty: "Intermediate" },
-    { title: "सुबह जल्दी उठना सफलता की कुंजी है या सिर्फ एक भ्रम?", category: "Impromptu Fun", difficulty: "Beginner" },
-    { title: "इतिहास के किन तीन लोगों को आप रात्रिभोज पर आमंत्रित करना चाहेंगे और क्यों?", category: "Impromptu Fun", difficulty: "Beginner" },
-    { title: "दैनिक जीवन की छोटी-छोटी खुशियों का जश्न मनाना क्यों जरूरी है?", category: "Impromptu Fun", difficulty: "Beginner" }
-  ]
-};
-
-const TOPIC_ROULETTE_LIBRARY_ML = {
-  technology: [
-    { title: "നിർമ്മിത ബുദ്ധി (AI) വരും ദശകത്തിൽ തൊഴിൽ മേഖലയെ എങ്ങനെ മാറ്റിമറിക്കും?", category: "AI & Technology", difficulty: "Advanced" },
-    { title: "സാങ്കേതികവിദ്യയുടെ വളർച്ച മനുഷ്യൻ്റെ സർഗ്ഗാത്മകതയെ എങ്ങനെ സ്വാധീനിക്കുന്നു?", category: "AI & Technology", difficulty: "Intermediate" },
-    { title: "സൈബർ സുരക്ഷ ഇന്ന് നേരിടുന്ന ഏറ്റവും വലിയ വെല്ലുവിളികൾ എന്തൊക്കെയാണ്?", category: "AI & Technology", difficulty: "Advanced" },
-    { title: "ക്ലൗഡ് കമ്പ്യൂട്ടിംഗും ആധുനിക സാങ്കേതികവിദ്യകളും എങ്ങനെ മാറ്റങ്ങൾ കൊണ്ടുവരുന്നു?", category: "AI & Technology", difficulty: "Intermediate" },
-    { title: "വ്യക്തിഗത വിവര സംരക്ഷണവും സാങ്കേതികവിദ്യയും തമ്മിലുള്ള സന്തുലിതാവസ്ഥ.", category: "AI & Technology", difficulty: "Advanced" }
-  ],
-  science: [
-    { title: "ഇരുപതാം നൂറ്റാണ്ടിലെയും ഇരുപത്തിയൊന്നാം നൂറ്റാണ്ടിലെയും ഏറ്റവും വലിയ ശാസ്ത്ര കണ്ടുപിടിത്തം ഏതാണ്?", category: "Science & Future", difficulty: "Intermediate" },
-    { title: "കാലാവസ്ഥാ വ്യതിയാനം തടയാൻ ഹരിത ഊർജ്ജത്തിൻ്റെ പ്രാധാന്യം എന്താണ്?", category: "Science & Future", difficulty: "Intermediate" },
-    { title: "ബഹിരാകാശ ഗവേഷണം മനുഷ്യരാശിയുടെ ഭാവിക്ക് എത്രത്തോളം ഗുണകരമാണ്?", category: "Science & Future", difficulty: "Advanced" },
-    { title: "ശാസ്ത്ര ഗവേഷണവും സാങ്കേതികവിദ്യയും മനുഷ്യൻ്റെ ഭാവിക്ക് എത്രത്തോളം പ്രധാനമാണ്?", category: "Science & Future", difficulty: "Intermediate" },
-    { title: "ക്വാണ്ടം കമ്പ്യൂട്ടിംഗ് ശാസ്ത്രലോകത്ത് എന്തെല്ലാം മാറ്റങ്ങൾ സൃഷ്ടിക്കും?", category: "Science & Future", difficulty: "Expert" }
-  ],
-  leadership: [
-    { title: "പ്രതിസന്ധി ഘട്ടങ്ങളിൽ ഒരു ടീമിനെ എങ്ങനെ വിജയകരമായി നയിക്കാം?", category: "Executive Leadership", difficulty: "Advanced" },
-    { title: "ഒരു നല്ല മാനേജറും മികച്ച ഭരണകർത്താവും തമ്മിലുള്ള പ്രധാന വ്യത്യാസങ്ങൾ എന്തൊക്കെയാണ്?", category: "Executive Leadership", difficulty: "Advanced" },
-    { title: "തൊഴിലിടങ്ങളിൽ പരസ്പര വിശ്വാസവും സുരക്ഷിതത്വവും എങ്ങനെ വളർത്തിയെടുക്കാം?", category: "Executive Leadership", difficulty: "Intermediate" },
-    { title: "വെല്ലുവിളികളെ ധൈര്യത്തോടെയും ആത്മവിശ്വാസത്തോടെയും എങ്ങനെ നേരിടാം?", category: "Executive Leadership", difficulty: "Expert" },
-    { title: "വ്യക്തമായ ആശയവിനിമയം ഒരു ലീഡർക്ക് എത്രത്തോളം ആവശ്യമാണ്?", category: "Executive Leadership", difficulty: "Intermediate" }
-  ],
-  general: [
-    { title: "നിങ്ങളുടെ ജീവിതത്തിലെ ഏറ്റവും വലിയ നേട്ടത്തെക്കുറിച്ചും അത് പഠിപ്പിച്ച പാഠങ്ങളെക്കുറിച്ചും സംസാരിക്കുക.", category: "Personal Growth", difficulty: "Intermediate" },
-    { title: "പരാജയങ്ങളെ അതിജീവിച്ച് വിജയത്തിലെത്തിയ ഒരു അനുഭവത്തെക്കുറിച്ച് പറയുക.", category: "Personal Growth", difficulty: "Intermediate" },
-    { title: "നിങ്ങളുടെ വീക്ഷണത്തിൽ യഥാർത്ഥ വിജയവും നേതൃത്വവും എന്താണ്?", category: "Personal Growth", difficulty: "Beginner" },
-    { title: "ഔദ്യോഗിക ജീവിതവും വ്യക്തിജീവിതവും തമ്മിൽ എങ്ങനെ സന്തുലിതാവസ്ഥ നിലനിർത്താം?", category: "Personal Growth", difficulty: "Intermediate" },
-    { title: "ജീവിതത്തിൽ നിരന്തരമായ പഠനത്തിൻ്റെയും സ്വയം നവീകരണത്തിൻ്റെയും പ്രാധാന്യം.", category: "Personal Growth", difficulty: "Beginner" }
-  ],
-  business: [
-    { title: "വ്യാപാര സ്ഥാപനങ്ങൾ ലാഭത്തേക്കാൾ സാമൂഹിക പ്രതിബദ്ധതയ്ക്ക് മുൻഗണന നൽകണമോ?", category: "Business & Ethics", difficulty: "Advanced" },
-    { title: "വീട്ടിലിരുന്നയുള്ള ജോലിയും (Remote Work) ഓഫീസ് സംസ്കാരവും തമ്മിലുള്ള മാറ്റങ്ങൾ.", category: "Business & Ethics", difficulty: "Intermediate" },
-    { title: "ഉപഭോക്താക്കളുടെ വിശ്വാസ്യതയാണ് ഏതൊരു ബിസിനസ്സിൻ്റെയും ഏറ്റവും വലിയ മൂലധനം - എന്തുകൊണ്ട്?", category: "Business & Ethics", difficulty: "Intermediate" },
-    { title: "ബിസിനസ്സ് രംഗത്ത് സത്യസന്ധതയും സുതാര്യതയും എത്രത്തോളം പ്രധാനമാണ്?", category: "Business & Ethics", difficulty: "Advanced" },
-    { title: "പുതിയ സംരംഭങ്ങൾ (Startups) വ്യവസായ മേഖലയിൽ എന്തെല്ലാം മാറ്റങ്ങൾ കൊണ്ടുവരുന്നു?", category: "Business & Ethics", difficulty: "Intermediate" }
-  ],
-  fun: [
-    { title: "നിങ്ങൾക്ക് ഭൂതകാലത്തിലേക്ക് യാത്ര ചെയ്യാൻ കഴിഞ്ഞാൽ ഏത് കാലഘട്ടത്തിലേക്ക് പോകും, എന്തുകൊണ്ട്?", category: "Impromptu Fun", difficulty: "Beginner" },
-    { title: "രാവിലെ നേരത്തെ എഴുന്നേൽക്കുന്നത് വിജയത്തിൻ്റെ രഹസ്യമോ അതോ വെറും മിഥ്യയോ?", category: "Impromptu Fun", difficulty: "Beginner" },
-    { title: "അന്യഗ്രഹജീവികളുമായി സംസാരിക്കാൻ അവസരം ലഭിച്ചാൽ നിങ്ങൾ ആദ്യം എന്ത് പറയും?", category: "Impromptu Fun", difficulty: "Intermediate" },
-    { title: "ചരിത്രത്തിലെ ഏത് മൂന്ന് വ്യക്തികളെയാണ് നിങ്ങൾ ഒരു വിരുന്നിന് ക്ഷണിക്കാൻ ആഗ്രഹിക്കുന്നത്?", category: "Impromptu Fun", difficulty: "Beginner" },
-    { title: "ജീവിതത്തിലെ കൊച്ചു കൊച്ചു സന്തോഷങ്ങൾ ആഘോഷിക്കേണ്ടതിൻ്റെ ആവശ്യകത.", category: "Impromptu Fun", difficulty: "Beginner" }
-  ]
-};
 
 document.addEventListener("DOMContentLoaded", function () {
   const btnStart = document.getElementById("btnStartRecord");
@@ -223,38 +134,6 @@ document.addEventListener("DOMContentLoaded", function () {
   if (btnAnalyze) btnAnalyze.addEventListener("click", submitSpeechForAnalysis);
   if (btnDemoText) btnDemoText.addEventListener("click", populateDemoSpeech);
 
-  // 0. Setup Language Selector Pills (English / Hindi / Malayalam)
-  const langBtns = document.querySelectorAll(".lang-pill-btn");
-  langBtns.forEach(btn => {
-    btn.addEventListener("click", function () {
-      langBtns.forEach(b => {
-        b.classList.remove("btn-safe-space", "active");
-        b.classList.add("btn-outline-safe");
-      });
-      this.classList.remove("btn-outline-safe");
-      this.classList.add("btn-safe-space", "active");
-
-      const lang = this.getAttribute("data-lang") || "en-US";
-      window.selectedLanguage = lang;
-
-      const langName = lang === "hi-IN" ? "हिंदी (Hindi)" : (lang === "ml-IN" ? "മലയാളം (Malayalam)" : "English");
-      showToast(`Language switched to ${langName}. Topic Roulette & Speech Recognition updated!`, "info");
-
-      const targetWpmText = document.getElementById("targetWpmText");
-      if (targetWpmText) {
-        if (lang === "hi-IN") {
-          targetWpmText.textContent = "Target: 100–130 WPM";
-        } else if (lang === "ml-IN") {
-          targetWpmText.textContent = "Target: 80–110 WPM";
-        } else {
-          targetWpmText.textContent = "Target: 120–150 WPM";
-        }
-      }
-
-      // Spin roulette in new language
-      spinTopicRoulette(currentCategory);
-    });
-  });
 
   // 1. Setup Category Filter Pills
   const categoryBtns = document.querySelectorAll(".category-tab-btn");
@@ -425,10 +304,8 @@ function spinTopicRoulette(category = "all") {
     btnSpin.innerHTML = `<i class="bi bi-arrow-repeat animate-spin me-2"></i> Spinning Roulette...`;
   }
 
-  // Gather available subtopics based on selected language (English, Hindi, or Malayalam)
-  const activeLibrary = window.selectedLanguage === "hi-IN"
-    ? TOPIC_ROULETTE_LIBRARY_HI
-    : (window.selectedLanguage === "ml-IN" ? TOPIC_ROULETTE_LIBRARY_ML : TOPIC_ROULETTE_LIBRARY);
+  // Gather available subtopics (English)
+  const activeLibrary = TOPIC_ROULETTE_LIBRARY;
 
   let available = [];
   if (category === "all") {
@@ -1109,16 +986,10 @@ function updatePauseRatioDisplay() {
 }
 
 /**
- * 9. Populate Demo Speech (for instant testing without speaking in English, Hindi, or Malayalam)
+ * 9. Populate Demo Speech (for instant testing without speaking)
  */
 function populateDemoSpeech() {
-  let demoText = "Um hello everyone, this is like literally a test of filler words and executive presence. When we examine the future of artificial intelligence, we must recognize both its incredible potential and its ethical challenges. I believe that true leadership requires transparent communication, continuous learning, and empathy. Thank you for your attention.";
-  
-  if (window.selectedLanguage === "hi-IN") {
-    demoText = "नमस्ते सभी को, यह सार्वजनिक भाषण और नेतृत्व कौशल का एक अभ्यास है। जब हम आर्टिफिशियल इंटेलिजेंस के भविष्य को देखते हैं, तो हमें इसकी अपार संभावनाओं और नैतिक चुनौतियों दोनों को समझना होगा। मैं मानता हूँ कि सच्चे नेतृत्व के लिए स्पष्ट संवाद, सतत सीखना और सहानुभूति आवश्यक है। धन्यवाद।";
-  } else if (window.selectedLanguage === "ml-IN") {
-    demoText = "എല്ലാവർക്കും നമസ്കാരം, ഇത് പൊതുപ്രസംഗത്തിൻ്റെയും നേതൃത്വ പാടവത്തിൻ്റെയും ഒരു പരിശീലനമാണ്. നിർമ്മിത ബുദ്ധിയുടെ ഭാവി പരിശോധിക്കുമ്പോൾ അതിൻ്റെ വലിയ സാധ്യതകളും ധാർമ്മിക വെല്ലുവിളികളും നാം മനസ്സിലാക്കേണ്ടതുണ്ട്. മികച്ച നേതൃത്വത്തിന് വ്യക്തമായ ആശയവിനിമയവും സഹാനുഭൂതിയും അത്യന്താപേക്ഷിതമാണെന്ന് ഞാൻ വിശ്വസിക്കുന്നു. നന്ദി.";
-  }
+  const demoText = "Um hello everyone, this is like literally a test of filler words and executive presence. When we examine the future of artificial intelligence, we must recognize both its incredible potential and its ethical challenges. I believe that true leadership requires transparent communication, continuous learning, and empathy. Thank you for your attention.";
 
   const transcriptBox = document.getElementById("transcriptTextarea");
   if (transcriptBox) {

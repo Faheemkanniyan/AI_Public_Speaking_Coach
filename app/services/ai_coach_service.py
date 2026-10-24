@@ -21,6 +21,8 @@ class AICoachService:
 
     def __init__(self):
         self.api_key = getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
+        self.model_name = "gemini-3.5-flash-lite"
+        self.model = None
         if self.api_key and GENAI_AVAILABLE:
             try:
                 self.client = genai.Client(api_key=self.api_key)
@@ -47,7 +49,7 @@ class AICoachService:
                 providing expert speaking advice, exercises, and encouragement. Keep it professional, modern, and motivating.
                 """
                 res = self.client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model=self.model_name,
                     contents=prompt
                 )
                 return res.text.strip()
@@ -128,7 +130,7 @@ class AICoachService:
         days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         practice_days = days_of_week[:pref.practice_days_per_week] # Simplified allocation
         
-        if self.model and self.api_key:
+        if self.client and self.api_key:
             try:
                 prompt = f"""
                 You are SpeakPro AI, a Public Speaking Coach.
@@ -145,20 +147,38 @@ class AICoachService:
                 
                 Return ONLY valid JSON.
                 """
-                res = self.model.generate_content(prompt)
-                plan_data = json.loads(res.text.strip('` \njson'))
+                res = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt
+                )
+                text = res.text.strip()
+                json_start = text.find('[')
+                json_end = text.rfind(']')
+                if json_start != -1 and json_end != -1 and json_end > json_start:
+                    text = text[json_start:json_end+1]
+                elif text.startswith("```json"):
+                    text = text[7:]
+                    if text.endswith("```"):
+                        text = text[:-3]
+                elif text.startswith("```"):
+                    text = text[3:]
+                    if text.endswith("```"):
+                        text = text[:-3]
+
+                plan_data = json.loads(text.strip())
                 
-                for i, day_plan in enumerate(plan_data):
-                    PracticePlan.objects.create(
-                        user=user,
-                        week_number=1,
-                        day=day_plan.get("day", days_of_week[i % 7]),
-                        activity=day_plan.get("activity", "General Practice"),
-                        focus_area=day_plan.get("focus_area", "General"),
-                        duration=day_plan.get("duration", pref.daily_practice_minutes)
-                    )
-                return True
-            except Exception as e:
+                if isinstance(plan_data, list) and len(plan_data) > 0:
+                    for i, day_plan in enumerate(plan_data):
+                        PracticePlan.objects.create(
+                            user=user,
+                            week_number=1,
+                            day=day_plan.get("day", days_of_week[i % 7]),
+                            activity=day_plan.get("activity", "General Practice"),
+                            focus_area=day_plan.get("focus_area", "General"),
+                            duration=day_plan.get("duration", pref.daily_practice_minutes)
+                        )
+                    return True
+            except Exception:
                 pass # Fallback to deterministic
                 
         # Deterministic Fallback

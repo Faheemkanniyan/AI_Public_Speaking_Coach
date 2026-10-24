@@ -58,13 +58,23 @@
               </a>
             </li>
             <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle px-1 px-xl-2 rounded-pill {% if 'interview' in request.resolver_match.url_name %}active fw-bold{% endif %}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-person-video2 me-1" style="color: #8E44AD;"></i>Mock Interview
+              </a>
+              <ul class="dropdown-menu border-0 shadow-sm rounded-3 py-2">
+                <li><a class="dropdown-item py-2" href="{% url 'interview_setup' %}"><i class="bi bi-play-circle-fill me-2 text-primary"></i>Start New Interview</a></li>
+                <li><a class="dropdown-item py-2" href="{% url 'interview_history' %}"><i class="bi bi-clock-history me-2 text-secondary"></i>Interview History</a></li>
+                <li><a class="dropdown-item py-2" href="{% url 'interview_performance' %}"><i class="bi bi-graph-up me-2 text-success"></i>Performance Analytics</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle px-1 px-xl-2 rounded-pill" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 My Progress
               </a>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="{% url 'progress_daily' %}">Daily Progress</a></li>
-                <li><a class="dropdown-item" href="{% url 'progress_weekly' %}">Weekly Progress</a></li>
-                <li><a class="dropdown-item" href="{% url 'progress_monthly' %}">Monthly Progress</a></li>
+              <ul class="dropdown-menu border-0 shadow-sm rounded-3 py-2">
+                <li><a class="dropdown-item py-2" href="{% url 'progress_daily' %}">Daily Progress</a></li>
+                <li><a class="dropdown-item py-2" href="{% url 'progress_weekly' %}">Weekly Progress</a></li>
+                <li><a class="dropdown-item py-2" href="{% url 'progress_monthly' %}">Monthly Progress</a></li>
               </ul>
             </li>
             <li class="nav-item">
@@ -88,6 +98,9 @@
             </li>
             <li class="nav-item">
               <a class="nav-link px-3" href="{% url 'landing' %}#how-it-works">How It Works</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link px-3" href="{% url 'interview_setup' %}"><i class="bi bi-person-video2 me-1"></i>Mock Interview</a>
             </li>
             <li class="nav-item">
               <a class="nav-link px-3" href="{% url 'landing' %}#reassurance">Judgment-Free AI</a>
@@ -177,7 +190,7 @@
           <h6 class="fw-bold mb-3" style="color: #1C1B18;">Core Practice</h6>
           <ul class="list-unstyled small d-flex flex-column gap-2" style="color: #6A665E;">
             <li><a href="{% url 'practice' %}" class="text-decoration-none" style="color: #6A665E;">Practice Studio</a></li>
-            <li><a href="{% url 'ai_coach' %}" class="text-decoration-none" style="color: #6A665E;">AI Speech Coach</a></li>
+            <li><a href="{% url 'interview_setup' %}" class="text-decoration-none fw-semibold" style="color: #8E44AD;"><i class="bi bi-person-video2 me-1"></i>AI Mock Interview</a></li>
             <li><a href="{% url 'analytics' %}" class="text-decoration-none" style="color: #6A665E;">Progress Analytics</a></li>
             <li><a href="{% url 'history' %}" class="text-decoration-none" style="color: #6A665E;">Practice History</a></li>
           </ul>

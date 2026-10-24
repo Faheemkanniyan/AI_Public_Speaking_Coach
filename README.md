@@ -6,7 +6,7 @@
 
 <sub>Master your public speaking skills with real-time audio visualization, 10-dimension AI evaluations, gamified progress tracking, and personalized goal setting.</sub>
 
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](requirements.txt) [![Django](https://img.shields.io/badge/django-5.0-092E20.svg)](requirements.txt) [![Gemini AI](https://img.shields.io/badge/AI-Google_Gemini-orange.svg)](requirements.txt) [![Local first](https://img.shields.io/badge/privacy-local--first-brightgreen.svg)]()
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](requirements.txt) [![Django](https://img.shields.io/badge/django-5.0-092E20.svg)](requirements.txt) [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-336791.svg?logo=postgresql&logoColor=white)](requirements.txt) [![Celery](https://img.shields.io/badge/Celery-5.6-37814A.svg?logo=celery&logoColor=white)](requirements.txt) [![Redis](https://img.shields.io/badge/Redis-Queue-DC382D.svg?logo=redis&logoColor=white)](requirements.txt) [![Gemini AI](https://img.shields.io/badge/AI-Google_Gemini-orange.svg)](requirements.txt) [![Local first](https://img.shields.io/badge/privacy-local--first-brightgreen.svg)]()
 
 [Features](#features) · [Architecture](#architecture) · [Workflows](#workflows) · [Quick Start](#quick-start)
 
@@ -22,7 +22,7 @@
 
 ## 🏗️ Architecture & How It Works
 
-The platform keeps your audio and PDF data local while leveraging the power of Google Gemini AI for advanced speech evaluation, and AssemblyAI for precise transcriptions and filler word detection. 
+The platform keeps your audio and PDF data local while leveraging asynchronous background processing via **Celery & Redis**, data persistence via **PostgreSQL**, Google Gemini AI for advanced speech evaluation, and AssemblyAI for high-precision transcriptions and filler word detection.
 
 ```mermaid
 graph TD
@@ -35,45 +35,56 @@ graph TD
     end
     
     subgraph Backend [Django 5 Core]
-        Django[Django Routing & Views]
-        SpeechSvc[Speech Service & AssemblyAI]
-        AISvc[Gemini AI / NLP Fallback]
+        Django[Django Routing & API Endpoints]
+        SpeechSvc[Speech Service & Session Manager]
+        Analytics[Analytics & Goal Tracking Engine]
+    end
+
+    subgraph AsyncQueue [Async Task Queue]
+        Redis[(Redis Message Broker :6379)]
+        CeleryWorker[Celery Worker Engine]
+        Tasks[analyze_speech_task]
+    end
+
+    subgraph AIServices [AI & Processing Engines]
+        Gemini[Google Gemini AI / NLP Fallback]
+        AssemblyAI[AssemblyAI STT & Filler Detection]
         ReportSvc[ReportLab PDF Engine]
-        Analytics[Analytics & Goal Tracking]
     end
     
-    subgraph Storage [Hybrid Storage]
-        DB[(SQLite Database)]
-
+    subgraph Storage [Persistent Storage]
+        PG[(PostgreSQL Database :5432)]
         Uploads[Audio Uploads /uploads/]
         PDFs[PDF Reports /reports/]
     end
 
-    User <--> |Interact| UI
-    UI --> |Record| WebAudio
+    User <--> |Interact & Practice| UI
+    UI --> |Audio Streams| WebAudio
     UI --> |Live Transcription| WebSpeech
     
-    WebAudio --> |WAV/WEBM Upload| Django
-    WebSpeech --> |Text Transcript| Django
-    
+    WebAudio --> |Upload Audio/Transcript| Django
     Django --> SpeechSvc
-    SpeechSvc --> AISvc
-    AISvc --> |10-Dimension Analysis| ReportSvc
-    
-    SpeechSvc --> DB
-    AISvc --> DB
-    ReportSvc --> PDFs
-    ReportSvc --> DB
-    Analytics --> DB
+    SpeechSvc --> |Save Audio File| Uploads
+    SpeechSvc --> |Create Initial Session| PG
+    Django --> |Dispatch Background Task| Redis
 
-    
-    SpeechSvc --> Uploads
+    Redis --> CeleryWorker
+    CeleryWorker --> Tasks
+    Tasks --> AssemblyAI
+    Tasks --> Gemini
+    Tasks --> ReportSvc
+    ReportSvc --> |Generate PDF| PDFs
+    Tasks --> |Save Scores & Reports| PG
+    Analytics --> PG
 ```
 
-The system is highly modular:
-- **Speech Service**: Handles file uploads, metadata extraction, and session management.
-- **AI Service**: Connects to Google Gemini (or uses an offline NLP fallback) to evaluate the speech across 10 metrics.
-- **Report Service**: Uses ReportLab to generate dynamic, professional PDF summaries of your sessions.
+The system is designed for high throughput, modularity, and responsiveness:
+- **Django Core**: Serves the sleek glassmorphic frontend and processes REST API requests instantly without blocking UI interactions.
+- **Celery & Redis**: Offloads heavy AI speech evaluations, audio processing, and PDF rendering into an asynchronous background task queue.
+- **PostgreSQL**: Stores user profiles, speech sessions, 10-dimension evaluation metrics, visual presence tracking, goals, and error history.
+- **Speech Service & AssemblyAI**: Ingests audio files locally into `/uploads/`, with AssemblyAI handling transcription and filler word timestamps.
+- **AI Service**: Evaluates transcripts across 10 qualitative dimensions via Google Gemini (with an automatic offline NLP fallback for network/quota outages).
+- **Report Service**: Uses ReportLab to generate dynamic, professional PDF summaries of your sessions saved into `/reports/`.
 - **Analytics Service**: Drives Chart.js visualizations for your gamified dashboard, daily/weekly/monthly progress, and weaknesses tracking.
 
 <a id="workflows"></a>
