@@ -5,6 +5,7 @@ and speech-to-text transcription utilities.
 """
 
 import os
+import json
 import uuid
 import time
 from pathlib import Path
@@ -103,21 +104,31 @@ class SpeechService:
 
         return session
 
-    def analyze_existing_session(self, session_id):
+    def analyze_existing_session(self, session_id, force_retry=False):
         """
-        Background task method: Retrieves an existing SpeechSession, runs AI analysis (AssemblyAI & Gemini),
+        Background/synchronous task method: Retrieves an existing SpeechSession, runs AI analysis (AssemblyAI & Gemini),
         creates a SpeechReport, and updates stats.
+        If Gemini fails, marks status='evaluation_failed' with error_code and error_message. No fake scores.
         """
         from app.models import SpeechSession, SpeechReport, Score
+        from app.services.gemini_service import (
+            GeminiSpeechAnalyzer,
+            GeminiEvaluationError,
+            compute_objective_speech_metrics,
+            map_gemini_exception
+        )
+        from django.utils import timezone
         import json
         
         session = SpeechSession.objects.get(id=session_id)
         user = session.user
         
-        # If report already exists, return immediately
+        # If report already exists and not forced retry, return immediately
         existing_report = SpeechReport.objects.filter(session=session).first()
-        if existing_report:
+        if existing_report and not force_retry:
             return session, existing_report
+        elif existing_report and force_retry:
+            existing_report.delete()
 
         transcript_text = session.transcript
         language = session.language
@@ -143,9 +154,7 @@ class SpeechService:
                     aai_result = aai_service.transcribe_audio(full_audio_path)
                     if aai_result.get("status") == "completed" and aai_result.get("text"):
                         transcript_text = aai_result.get("text", transcript_text)
-                        
                         language = "en-US"
-                        
                         session.transcript = transcript_text
                         session.language = language
                         session.save()
@@ -153,17 +162,52 @@ class SpeechService:
                 import logging
                 logging.getLogger(__name__).warning(f"AssemblyAI transcription fallback: {e}")
 
-        # Perform AI Speech Analysis
-        from app.services.gemini_service import GeminiSpeechAnalyzer
+        # Compute objective facts in Python first and store on session
+        metrics = compute_objective_speech_metrics(transcript_text, session.duration_seconds)
+        session.word_count = metrics["word_count"]
+        session.wpm = metrics["wpm"]
+        session.filler_count = metrics["filler_count"]
+        session.save()
+
+        # Perform Grounded AI Speech Analysis
         analyzer = GeminiSpeechAnalyzer()
-        ai_data = analyzer.analyze_speech(transcript_text, session.topic_title, duration_seconds=session.duration_seconds, language=language, visual_metrics=visual_metrics)
+        audio_full_path = None
+        try:
+            if session.audio_file and hasattr(session.audio_file, 'path') and os.path.exists(session.audio_file.path):
+                audio_full_path = session.audio_file.path
+        except Exception:
+            audio_full_path = None
 
-        # Update session transcript to the accurate reconstructed transcript
-        if ai_data.get("cleaned_transcript"):
-            session.transcript = ai_data["cleaned_transcript"]
+        try:
+            ai_data = analyzer.analyze_speech(
+                transcript_text,
+                session.topic_title,
+                duration_seconds=session.duration_seconds,
+                language=language,
+                visual_metrics=visual_metrics,
+                audio_path=audio_full_path
+            )
+        except GeminiEvaluationError as gee:
+            session.status = "evaluation_failed"
+            session.error_code = gee.code
+            session.error_message = gee.message
             session.save()
+            return session, None
+        except Exception as exc:
+            mapped = map_gemini_exception(exc, model_name=analyzer.model_name)
+            session.status = "evaluation_failed"
+            session.error_code = mapped.code
+            session.error_message = mapped.message
+            session.save()
+            return session, None
 
-        # Create SpeechReport
+        # Evaluation succeeded - update session status
+        session.status = "evaluated"
+        session.error_code = ""
+        session.error_message = ""
+        session.save()
+
+        # Create SpeechReport with full provenance
         report = SpeechReport.objects.create(
             session=session,
             overall_score=ai_data.get("overall_score", 0),
@@ -172,6 +216,8 @@ class SpeechService:
             vocabulary_score=ai_data.get("vocabulary_score", 0),
             communication_score=ai_data.get("communication_score", 0),
             fluency_score=ai_data.get("fluency_score", 0),
+            clarity_score=ai_data.get("clarity_score", 0),
+            content_relevance_score=ai_data.get("content_relevance_score", 0),
             presence_score=ai_data.get("presence_score", 0),
             body_language_feedback=ai_data.get("body_language_feedback", ""),
             strengths_json=json.dumps(ai_data.get("strengths", [])),
@@ -180,6 +226,12 @@ class SpeechService:
             suggestions_json=json.dumps(ai_data.get("improvement_suggestions", [])),
             motivational_feedback=ai_data.get("motivational_feedback", ""),
             exercises_json=json.dumps(ai_data.get("practice_exercises", [])),
+            engine=ai_data.get("engine", "gemini"),
+            model_name=ai_data.get("model_name", analyzer.model_name),
+            prompt_version=ai_data.get("prompt_version", analyzer.PROMPT_VERSION),
+            score_formula=ai_data.get("score_formula", analyzer.SCORE_FORMULA),
+            raw_model_json=ai_data.get("raw_model_json", {}),
+            evaluated_at=timezone.now(),
         )
 
         # Update VisualPresence with AI body language feedback if available

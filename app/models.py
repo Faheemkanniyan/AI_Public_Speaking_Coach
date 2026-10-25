@@ -72,6 +72,12 @@ class SpeechSession(models.Model):
     transcript = models.TextField(help_text="Transcribed speech text.")
     duration_seconds = models.IntegerField(default=60)
     language = models.CharField(max_length=20, default="en-US")
+    status = models.CharField(max_length=30, default="evaluated", db_index=True)
+    error_code = models.CharField(max_length=50, blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
+    word_count = models.IntegerField(default=0)
+    wpm = models.IntegerField(default=0)
+    filler_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -97,8 +103,18 @@ class SpeechReport(models.Model):
     vocabulary_score = models.IntegerField(default=0)
     communication_score = models.IntegerField(default=0)
     fluency_score = models.IntegerField(default=0)
+    clarity_score = models.IntegerField(default=0)
+    content_relevance_score = models.IntegerField(default=0)
     presence_score = models.IntegerField(default=0, help_text="AI Visual Presence & Body Language Score (0-100)")
     body_language_feedback = models.TextField(blank=True, default="", help_text="Gemini evaluation of webcam visual presence")
+
+    # Provenance and engine configuration
+    engine = models.CharField(max_length=50, default="gemini")
+    model_name = models.CharField(max_length=100, default="gemini-3-flash-preview")
+    prompt_version = models.CharField(max_length=50, default="v2.0")
+    score_formula = models.CharField(max_length=255, blank=True, default="Grammar (20%) + Vocabulary (15%) + Fluency (25%) + Clarity (15%) + Confidence & Delivery (10%) + Content Relevance (15%)")
+    raw_model_json = models.JSONField(default=dict, blank=True)
+    evaluated_at = models.DateTimeField(null=True, blank=True)
 
     # JSON fields for structured lists
     strengths_json = models.TextField(default="[]", help_text="JSON list of strengths")
@@ -348,6 +364,9 @@ class InterviewSession(models.Model):
     total_questions = models.IntegerField(default=5)
     completed_questions = models.IntegerField(default=0)
     final_score = models.FloatField(default=0.0)
+    status = models.CharField(max_length=30, default="COMPLETED")
+    error_code = models.CharField(max_length=50, blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -396,6 +415,12 @@ class InterviewFeedback(models.Model):
     """
     answer = models.OneToOneField(InterviewAnswer, on_delete=models.CASCADE, related_name="feedback")
     evaluation_status = models.CharField(max_length=20, default="EVALUATED") # EVALUATED, FAILED, RETRYING
+    error_code = models.CharField(max_length=50, blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
+    engine = models.CharField(max_length=50, default="gemini")
+    model_name = models.CharField(max_length=100, default="gemini-3-flash-preview")
+    raw_model_json = models.JSONField(default=dict, blank=True)
+    evaluated_at = models.DateTimeField(null=True, blank=True)
     classification = models.CharField(max_length=50, default="Not Evaluated")
     relevance_score = models.IntegerField(default=0)
     technical_accuracy = models.IntegerField(default=0)

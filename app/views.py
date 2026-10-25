@@ -274,9 +274,21 @@ def result_view(request, session_id):
     """
     Speech evaluation Result page.
     Shows circular score, skill bars, highlighted corrections, AI report, and download CTA.
+    If evaluation failed, shows error banner and measurable facts only.
     """
     session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
     report = getattr(session, "report", None)
+
+    if session.status == "evaluation_failed":
+        return render(request, "result.html", {
+            "session": session,
+            "report": None,
+            "evaluation_failed": True,
+            "error_code": session.error_code,
+            "error_message": session.error_message,
+            "is_processing": False,
+        })
+
     if not report:
         return render(request, "result.html", {
             "session": session,
@@ -294,6 +306,30 @@ def result_view(request, session_id):
         "exercises": report.get_exercises(),
     }
     return render(request, "result.html", context)
+
+
+@login_required
+@require_POST
+def retry_speech_evaluation_view(request, session_id):
+    """
+    POST endpoint to retry speech evaluation after a failure.
+    """
+    session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
+    session.status = "pending"
+    session.error_code = ""
+    session.error_message = ""
+    session.save()
+
+    from app.services.speech_service import SpeechService
+    service = SpeechService()
+    try:
+        from app.tasks import analyze_speech_task
+        analyze_speech_task.delay(session.id)
+    except Exception as e:
+        logger.warning(f"Celery dispatch failed on retry, running sync: {e}")
+        service.analyze_existing_session(session.id, force_retry=True)
+
+    return redirect('result', session_id=session.id)
 
 
 @login_required

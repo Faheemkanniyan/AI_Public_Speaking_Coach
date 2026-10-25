@@ -168,6 +168,15 @@ def api_speech_analyze(request):
             logger.warning(f"Celery task dispatch failed, executing synchronously: {task_err}")
             speech_service.analyze_existing_session(session.id)
 
+        session.refresh_from_db()
+        if session.status == "evaluation_failed":
+            return JsonResponse({
+                "status": "error",
+                "code": session.error_code,
+                "message": session.error_message,
+                "session_id": session.id
+            }, status=503)
+
         report = getattr(session, "report", None)
         return JsonResponse({
             "status": "success",
@@ -188,6 +197,7 @@ def api_speech_status(request, session_id):
     """
     GET endpoint returning processing status for a speech session.
     Used by result.html to poll until async Celery task finishes report generation.
+    Returns 503 on evaluation failure.
     """
     session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
     report = getattr(session, "report", None)
@@ -197,6 +207,13 @@ def api_speech_status(request, session_id):
             "session_id": session.id,
             "overall_score": report.overall_score
         })
+    if session.status == "evaluation_failed":
+        return JsonResponse({
+            "status": "error",
+            "code": session.error_code,
+            "message": session.error_message,
+            "session_id": session.id
+        }, status=503)
     return JsonResponse({
         "status": "processing",
         "session_id": session.id
