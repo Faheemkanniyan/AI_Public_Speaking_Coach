@@ -261,6 +261,30 @@ CRITICAL EVALUATION RULES:
 8. model_answer: Concise, 3-6 sentence ideal answer outline.
 """
 
+        prompt += """
+CRITICAL OUTPUT FORMAT:
+Return response STRICTLY as a valid JSON object matching this schema:
+{
+  "relevance_score": 0-100,
+  "relevance_evidence": {"quotes": ["verbatim transcript quote"], "reason": "one-line reason"},
+  "technical_correctness_score": 0-100,
+  "technical_correctness_evidence": {"quotes": ["verbatim transcript quote"], "reason": "one-line reason"},
+  "completeness_score": 0-100,
+  "completeness_evidence": {"quotes": ["verbatim transcript quote"], "reason": "one-line reason"},
+  "structure_score": 0-100,
+  "structure_evidence": {"quotes": ["verbatim transcript quote"], "reason": "one-line reason"},
+  "communication_score": 0-100,
+  "communication_evidence": {"quotes": ["verbatim transcript quote"], "reason": "one-line reason"},
+  "classification": "Correct" | "Partially Correct" | "Incorrect" | "Not Answered",
+  "feedback": "Honest grounded feedback citing verbatim quotes",
+  "model_answer": "Concise 3-6 sentence ideal answer outline",
+  "missing_points": ["point 1", "point 2"],
+  "incorrect_statements": [{"quote": "verbatim quote", "why_wrong": "explanation"}],
+  "correct_points": ["point 1"],
+  "suggestions": ["specific suggestion"]
+}
+"""
+
         contents = [prompt]
         if has_audio:
             try:
@@ -274,7 +298,7 @@ CRITICAL EVALUATION RULES:
             except Exception as ae:
                 logger.warning(f"Could not attach interview audio: {ae}")
 
-        thinking = types.ThinkingConfig(thinking_budget=0) if hasattr(types, "ThinkingConfig") else None
+        thinking = types.ThinkingConfig(thinking_budget=0) if (hasattr(types, "ThinkingConfig") and "thinking" in self.model_name.lower()) else None
         config_kwargs = {
             "response_mime_type": "application/json",
             "response_schema": GroundedInterviewAnswerSchema,
@@ -300,6 +324,13 @@ CRITICAL EVALUATION RULES:
             except Exception as e:
                 last_error = e
                 logger.warning(f"Gemini interview evaluation attempt {attempt} failed: {e}")
+                # Fallback: remove thinking_config or response_schema if model threw 400
+                if "thinking_config" in config_kwargs:
+                    config_kwargs.pop("thinking_config", None)
+                    config = types.GenerateContentConfig(**config_kwargs)
+                elif "response_schema" in config_kwargs and ("400" in str(e) or "invalid" in str(e).lower()):
+                    config_kwargs.pop("response_schema", None)
+                    config = types.GenerateContentConfig(**config_kwargs)
                 if attempt == 1:
                     time.sleep(0.5)
 

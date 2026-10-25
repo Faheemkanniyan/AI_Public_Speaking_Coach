@@ -62,9 +62,9 @@ def map_gemini_exception(exc: Exception, model_name: str = "") -> GeminiEvaluati
             original_exception=exc,
         )
 
-    # 400, 401, 403: Auth / Key invalid
+    # 401, 403: Auth / Key invalid
     if (
-        status_code in (400, 401, 403)
+        status_code in (401, 403)
         or "api_key_invalid" in err_str
         or "api key not valid" in err_str
         or "invalid api key" in err_str
@@ -72,7 +72,7 @@ def map_gemini_exception(exc: Exception, model_name: str = "") -> GeminiEvaluati
         or "permission_denied" in err_str
         or "401" in err_str
         or "403" in err_str
-        or ("400" in err_str and ("key" in err_str or "api" in err_str or "credential" in err_str or "argument" in err_str))
+        or ("400" in err_str and ("api_key" in err_str or "api key" in err_str or "credential" in err_str))
     ):
         return GeminiEvaluationError(
             code="auth_error",
@@ -342,7 +342,7 @@ Their microphone captured this raw speech-to-text transcript with phonetic error
 Task: Correct only misheard phonetic slips while preserving authentic sentence structure, grammar, and natural fillers.
 Return ONLY the cleaned transcript text."""
         try:
-            thinking = types.ThinkingConfig(thinking_budget=0) if hasattr(types, "ThinkingConfig") else None
+            thinking = types.ThinkingConfig(thinking_budget=0) if (hasattr(types, "ThinkingConfig") and "thinking" in self.model_name.lower()) else None
             config_kwargs = {"temperature": 0.0}
             if thinking:
                 config_kwargs["thinking_config"] = thinking
@@ -567,8 +567,35 @@ CRITICAL GROUNDING RULES:
             except Exception as audio_err:
                 logger.warning(f"Failed to attach audio to Gemini: {audio_err}")
 
+        prompt += """
+CRITICAL OUTPUT FORMAT:
+Return response STRICTLY as a valid JSON object matching this schema:
+{
+  "topic_relevance_score": 0-100,
+  "topic_relevance_explanation": "one sentence explaining topic relevance",
+  "grammar_score": 0-100,
+  "grammar_evidence": {"quotes": ["verbatim transcript quote"], "reason": "justification"},
+  "vocabulary_score": 0-100,
+  "vocabulary_evidence": {"quotes": ["verbatim transcript quote"], "reason": "justification"},
+  "fluency_score": 0-100,
+  "fluency_evidence": {"quotes": ["verbatim transcript quote"], "reason": "justification"},
+  "clarity_score": 0-100,
+  "clarity_evidence": {"quotes": ["verbatim transcript quote"], "reason": "justification"},
+  "confidence_delivery_score": 0-100,
+  "confidence_delivery_evidence": {"quotes": ["verbatim transcript quote"], "reason": "justification"},
+  "content_relevance_score": 0-100,
+  "content_relevance_evidence": {"quotes": ["verbatim transcript quote"], "reason": "justification"},
+  "mistakes": [{"original": "verbatim quote", "correction": "correction", "type": "grammar"|"word_choice"|"likely_speech_recognition_error", "reason": "reason"}],
+  "strengths": ["Item with verbatim quote"],
+  "weaknesses": ["Item with verbatim quote"],
+  "suggestions": ["suggestion tied to weakness"],
+  "motivational_feedback": "encouragement",
+  "practice_exercises": ["drill"]
+}
+"""
+
         # Call Gemini with structured output
-        thinking = types.ThinkingConfig(thinking_budget=0) if hasattr(types, "ThinkingConfig") else None
+        thinking = types.ThinkingConfig(thinking_budget=0) if (hasattr(types, "ThinkingConfig") and "thinking" in self.model_name.lower()) else None
         config_kwargs = {
             "response_mime_type": "application/json",
             "response_schema": GroundedSpeechEvaluationSchema,
@@ -598,8 +625,14 @@ CRITICAL GROUNDING RULES:
             except Exception as e:
                 last_error = e
                 logger.warning(f"Gemini evaluation attempt {attempt} failed: {e}")
+                # Fallback: remove thinking_config or response_schema if model rejected it
+                if "thinking_config" in config_kwargs:
+                    config_kwargs.pop("thinking_config", None)
+                    config = types.GenerateContentConfig(**config_kwargs)
+                elif "response_schema" in config_kwargs and ("400" in str(e) or "invalid" in str(e).lower()):
+                    config_kwargs.pop("response_schema", None)
+                    config = types.GenerateContentConfig(**config_kwargs)
                 if attempt == 1:
-                    # Retry once before throwing
                     time.sleep(0.5)
 
         # Map error and raise

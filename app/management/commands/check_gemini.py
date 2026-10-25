@@ -53,7 +53,7 @@ class Command(BaseCommand):
 
         # 4. Tiny generateContent call
         try:
-            thinking = types.ThinkingConfig(thinking_budget=0) if hasattr(types, "ThinkingConfig") else None
+            thinking = types.ThinkingConfig(thinking_budget=0) if (hasattr(types, "ThinkingConfig") and "thinking" in model_name.lower()) else None
             config_kwargs = {"temperature": 0.0}
             if thinking:
                 config_kwargs["thinking_config"] = thinking

@@ -2,6 +2,7 @@ import io
 import json
 import pytest
 from unittest.mock import patch, MagicMock
+from django.conf import settings
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.urls import reverse
@@ -188,7 +189,8 @@ class Phase1ApiAndViewsTests(TestCase):
         with patch("google.genai.Client") as mock_client_cls:
             mock_client = MagicMock()
             mock_model = MagicMock()
-            mock_model.name = "models/gemini-3.5-flash"
+            active_model = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash")
+            mock_model.name = f"models/{active_model}"
             mock_client.models.list.return_value = [mock_model]
             mock_resp = MagicMock()
             mock_resp.text = "pong"
