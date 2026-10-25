@@ -463,7 +463,7 @@ async function beginMicrophoneRecording() {
     setupSpeechRecognition();
 
     // Start Visual Presence Recording automatically
-    if (!webcamAnalyzer && window.WebcamAnalyzer && document.getElementById('webcamPreview')) {
+    if ((!webcamAnalyzer || !webcamAnalyzer.hasPermission) && window.WebcamAnalyzer && document.getElementById('webcamPreview')) {
       const btnEnableCamera = document.getElementById('btnEnableCamera');
       if (btnEnableCamera) {
         btnEnableCamera.disabled = true;
@@ -1155,6 +1155,16 @@ async function submitSpeechForAnalysis() {
   if (!transcript && !audioBlob) {
     showToast("Please speak into your microphone or type a speech transcript before analyzing.", "error");
     return;
+  }
+
+  // If still actively recording, stop and finalize before sending
+  if (isRecording) {
+    stopRecording();
+  }
+
+  // Ensure visualMetricsData is captured from webcamAnalyzer if not already set
+  if (!visualMetricsData && webcamAnalyzer && typeof webcamAnalyzer.getMetrics === "function") {
+    visualMetricsData = webcamAnalyzer.stopRecording() || webcamAnalyzer.getMetrics();
   }
 
   // Show loading modal/spinner

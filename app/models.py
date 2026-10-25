@@ -203,6 +203,54 @@ class SpeechReport(models.Model):
             return 0
         return int((len(words) / max(1.0, self.time_consumed_seconds)) * 60)
 
+    @property
+    def rating_label(self):
+        score = self.overall_score
+        word_count = self.session.word_count or len((self.session.transcript or "").split())
+        if word_count < 25 and score == 0:
+            return "Not Enough Speech"
+        if score >= 90:
+            return "Excellent"
+        elif score >= 75:
+            return "Strong"
+        elif score >= 60:
+            return "Developing"
+        else:
+            return "Needs Practice"
+
+    def get_category_evidence(self, category_name: str):
+        if not self.raw_model_json or not isinstance(self.raw_model_json, dict):
+            return []
+        scores_dict = self.raw_model_json.get("scores", {})
+        cat_dict = scores_dict.get(category_name, {})
+        if isinstance(cat_dict, dict):
+            return cat_dict.get("evidence", [])
+        return []
+
+    @property
+    def grammar_evidence(self):
+        return self.get_category_evidence("grammar")
+
+    @property
+    def vocabulary_evidence(self):
+        return self.get_category_evidence("vocabulary")
+
+    @property
+    def fluency_evidence(self):
+        return self.get_category_evidence("fluency")
+
+    @property
+    def clarity_evidence(self):
+        return self.get_category_evidence("clarity")
+
+    @property
+    def confidence_evidence(self):
+        return self.get_category_evidence("confidence_delivery")
+
+    @property
+    def content_relevance_evidence(self):
+        return self.get_category_evidence("content_relevance")
+
     def __str__(self):
         return f"Report for Session #{self.session.id} (Score: {self.overall_score})"
 
@@ -369,6 +417,18 @@ class InterviewSession(models.Model):
     error_message = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def rating_label(self):
+        score = self.final_score
+        if score >= 90:
+            return "Excellent"
+        elif score >= 75:
+            return "Strong"
+        elif score >= 60:
+            return "Developing"
+        else:
+            return "Needs Practice"
+
     def __str__(self):
         return f"{self.user.username} - {self.interview_type} ({self.technology})"
 
@@ -462,6 +522,18 @@ class InterviewFeedback(models.Model):
             return json.loads(self.suggestions_json)
         except Exception:
             return []
+
+    @property
+    def rating_label(self):
+        score = self.answer.score if hasattr(self, 'answer') else 0
+        if score >= 90:
+            return "Excellent"
+        elif score >= 75:
+            return "Strong"
+        elif score >= 60:
+            return "Developing"
+        else:
+            return "Needs Practice"
 
     def __str__(self):
         return f"Feedback for Answer {self.answer.id}"

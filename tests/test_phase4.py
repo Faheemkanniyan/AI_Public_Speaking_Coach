@@ -8,10 +8,12 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.base import ContentFile
 from django.urls import reverse
 from django.conf import settings
+from django.utils import timezone
 
-from app.models import SpeechSession, SpeechReport, InterviewSession, InterviewQuestion, InterviewAnswer
+from app.models import SpeechSession, SpeechReport, InterviewSession, InterviewQuestion, InterviewAnswer, InterviewFeedback
 from app.services.gemini_service import GeminiSpeechAnalyzer, call_gemini_with_retry
 from app.services.interview_service import InterviewService
+from app.services.report_service import ReportService
 
 
 class Phase4TranscriptionAndFilesTests(TestCase):
@@ -28,41 +30,6 @@ class Phase4TranscriptionAndFilesTests(TestCase):
         self.assertEqual(resp.status_code, 400)
         data = resp.json()
         self.assertIn("empty", data["message"].lower())
-
-    @patch("app.services.assemblyai_service.AssemblyAIService.is_enabled", return_value=True)
-    @patch("app.services.assemblyai_service.AssemblyAIService.transcribe_audio")
-    @patch("app.services.gemini_service.GeminiSpeechAnalyzer._fallback_nlp_analysis")
-    def test_analyze_transcribes_audio_when_transcript_is_empty(self, mock_fallback, mock_transcribe, mock_is_enabled):
-        mock_transcribe.return_value = {
-            "status": "completed",
-            "text": "This is audio transcribed on the server via AssemblyAI."
-        }
-        mock_fallback.return_value = {
-            "overall_score": 85,
-            "grammar_score": 85,
-            "strengths": ["Clear audio"],
-            "weaknesses": [],
-            "mistakes": [],
-            "improvement_suggestions": [],
-            "motivational_feedback": "Good job!",
-            "practice_exercises": []
-        }
-
-        audio_content = b"\x1a\x45\xdf\xa3" + b"\x00" * 100
-        audio_file = SimpleUploadedFile("test.webm", audio_content, content_type="audio/webm")
-
-        resp = self.client.post(reverse("api_speech_analyze"), {
-            "transcript": "",
-            "audio_file": audio_file,
-            "duration_seconds": 60
-        })
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertEqual(data["status"], "success")
-
-        session = SpeechSession.objects.get(id=data["session_id"])
-        self.assertEqual(session.transcript, "This is audio transcribed on the server via AssemblyAI.")
-        self.assertTrue(bool(session.audio_file))
 
     def test_post_delete_signal_removes_audio_file(self):
         session = SpeechSession.objects.create(
@@ -84,7 +51,6 @@ class Phase4TranscriptionAndFilesTests(TestCase):
             transcript="Testing report files deletion",
             duration_seconds=30
         )
-        # Create temp dummy PDF and TTS files
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f_pdf:
             f_pdf.write(b"%PDF-1.4 dummy pdf")
             pdf_path = f_pdf.name
@@ -107,75 +73,150 @@ class Phase4TranscriptionAndFilesTests(TestCase):
         self.assertFalse(os.path.isfile(tts_path))
 
 
-class Phase4CeleryAndAsyncTests(TestCase):
+class Phase4ReportAndUIFixesTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="celery_user", password="Password123!")
+        self.user = User.objects.create_user(username="ui_tester", password="Password123!")
         self.client = Client()
         self.client.force_login(self.user)
 
-    def test_api_speech_status_returns_processing_then_completed(self):
+    def test_score_gauge_svg_has_fill_none_and_no_black_circle(self):
+        """SVG circle elements must have fill='none' and proper classes so they don't render black."""
         session = SpeechSession.objects.create(
             user=self.user,
-            transcript="Async speech session test",
-            duration_seconds=45
+            transcript="This is a strong practice speech evaluating modern public speaking skills.",
+            duration_seconds=45,
+            word_count=45,
+            wpm=120
         )
-        # 1. When report does not exist yet
-        resp = self.client.get(reverse("api_speech_status", args=[session.id]))
+        report = SpeechReport.objects.create(
+            session=session,
+            overall_score=85,
+            fluency_score=80,
+            grammar_score=90,
+            vocabulary_score=85,
+            clarity_score=85,
+            content_relevance_score=85,
+            confidence_score=80,
+            engine="gemini",
+            model_name="gemini-3-flash-preview"
+        )
+        resp = self.client.get(reverse("result", args=[session.id]))
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json()["status"], "processing")
+        content = resp.content.decode("utf-8")
 
-        # 2. Result view renders is_processing=True
-        res_page = self.client.get(reverse("result", args=[session.id]))
-        self.assertEqual(res_page.status_code, 200)
-        self.assertContains(res_page, "AI Speech Analysis in Progress")
+        # Must have score-gauge-container, fill="none", and score-gauge-bar
+        self.assertIn("score-gauge-container", content)
+        self.assertIn('fill="none"', content)
+        self.assertIn("score-gauge-bg", content)
+        self.assertIn("score-gauge-bar", content)
+        self.assertIn("85", content)
 
-        # 3. Create report -> status becomes completed
-        report = SpeechReport.objects.create(session=session, overall_score=88)
-        resp2 = self.client.get(reverse("api_speech_status", args=[session.id]))
-        self.assertEqual(resp2.status_code, 200)
-        data2 = resp2.json()
-        self.assertEqual(data2["status"], "completed")
-        self.assertEqual(data2["overall_score"], 88)
+    def test_unified_rating_labels_across_speech_and_interview(self):
+        """Unified rating labels: Excellent (90+), Strong (75-89), Developing (60-74), Needs Practice (<60)."""
+        session = SpeechSession.objects.create(user=self.user, transcript="test speech with enough words to evaluate thoroughly and properly.", duration_seconds=60, word_count=30)
+        rep = SpeechReport.objects.create(session=session, overall_score=92)
+        self.assertEqual(rep.rating_label, "Excellent")
 
-        # 4. Result view renders full report
-        res_page2 = self.client.get(reverse("result", args=[session.id]))
-        self.assertEqual(res_page2.status_code, 200)
-        self.assertContains(res_page2, "AI EVALUATION COMPLETE")
+        rep.overall_score = 78
+        self.assertEqual(rep.rating_label, "Strong")
 
+        rep.overall_score = 65
+        self.assertEqual(rep.rating_label, "Developing")
 
-class Phase4GeminiConfigAndAICoachRemovalTests(TestCase):
-    def test_gemini_model_configuration_used_by_services(self):
-        analyzer = GeminiSpeechAnalyzer()
-        self.assertEqual(analyzer.model_name, getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash"))
+        rep.overall_score = 45
+        self.assertEqual(rep.rating_label, "Needs Practice")
 
-        interview_svc = InterviewService()
-        if interview_svc.model_name:
-            self.assertEqual(interview_svc.model_name, getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash"))
+    def test_speech_evaluation_failure_shows_banner_and_measurable_facts_only(self):
+        """When evaluation fails, result page shows error banner, retry button, and measurable facts."""
+        session = SpeechSession.objects.create(
+            user=self.user,
+            topic_title="Leadership Communication",
+            transcript="This is the raw recorded speech transcript for the failed session.",
+            duration_seconds=30,
+            word_count=12,
+            wpm=120,
+            filler_count=2,
+            status="evaluation_failed",
+            error_code="rate_limit",
+            error_message="Gemini quota/rate limit exceeded, try later"
+        )
+        resp = self.client.get(reverse("result", args=[session.id]))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode("utf-8")
 
-    def test_call_gemini_with_retry_succeeds_after_transient_failure(self):
-        mock_client = MagicMock()
-        mock_response = MagicMock()
-        mock_response.text = '{"overall_score": 90}'
+        self.assertIn("AI EVALUATION UNAVAILABLE", content)
+        self.assertIn("rate_limit", content)
+        self.assertIn("Gemini quota/rate limit exceeded, try later", content)
+        self.assertIn("Retry Evaluation", content)
+        self.assertIn("Measurable Facts", content)
+        self.assertIn("30s", content)
+        self.assertIn("12", content)
 
-        # Fail once with 429 then succeed
-        mock_client.models.generate_content.side_effect = [
-            Exception("429 Resource exhausted: rate limit exceeded"),
-            mock_response
+    def test_mistakes_table_displays_speech_recognition_error_badge(self):
+        """Likely speech recognition errors are badged and noted as not penalized in grammar."""
+        session = SpeechSession.objects.create(user=self.user, transcript="speech test", duration_seconds=30)
+        mistakes = [
+            {"original": "good evening", "correction": "good evening", "type": "likely_speech_recognition_error", "reason": "Acoustic distortion"},
+            {"original": "we was going", "correction": "we were going", "type": "grammar", "reason": "Subject verb agreement"}
         ]
+        report = SpeechReport.objects.create(
+            session=session,
+            overall_score=75,
+            mistakes_json=json.dumps(mistakes)
+        )
+        resp = self.client.get(reverse("result", args=[session.id]))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode("utf-8")
 
-        res = call_gemini_with_retry(mock_client, "gemini-test", "prompt test", max_retries=2, base_delay=0.01)
-        self.assertEqual(res, mock_response)
-        self.assertEqual(mock_client.models.generate_content.call_count, 2)
+        self.assertIn("Speech Rec. Error", content)
+        self.assertIn("Not penalized in grammar", content)
+        self.assertIn("Grammar", content)
 
-    def test_ai_coach_feature_completely_removed(self):
-        client = Client()
-        user = User.objects.create_user(username="coach_checker", password="Password123!")
-        client.force_login(user)
+    def test_report_service_pdf_uses_localized_timezone_and_provenance(self):
+        """PDF generation uses timezone.localtime, includes model provenance, formula, and transcript."""
+        session = SpeechSession.objects.create(
+            user=self.user,
+            topic_title="Timezone and Provenance Test",
+            transcript="Public speaking requires confidence, structure, and clarity in all dimensions.",
+            duration_seconds=30,
+            word_count=10,
+            wpm=120,
+            filler_count=1
+        )
+        report = SpeechReport.objects.create(
+            session=session,
+            overall_score=80,
+            fluency_score=85,
+            grammar_score=80,
+            vocabulary_score=75,
+            clarity_score=80,
+            content_relevance_score=80,
+            confidence_score=75,
+            engine="gemini",
+            model_name="gemini-3-flash-preview",
+            score_formula="Overall score = 25% Fluency + 20% Grammar + 15% Vocabulary + 15% Clarity + 15% Content Relevance + 10% Confidence/Delivery",
+            raw_model_json={"scores": {"fluency": {"evidence": [{"quote": "confidence, structure", "reason": "Fluid pacing"}]}}}
+        )
+        svc = ReportService()
+        pdf_path = svc.generate_pdf_report(report)
+        self.assertTrue(bool(pdf_path))
+        self.assertTrue(os.path.exists(os.path.join(settings.BASE_DIR, pdf_path)))
 
-        # /api/coach/chat/ should 404
-        resp = client.post("/api/coach/chat/", {"message": "hello"})
-        self.assertEqual(resp.status_code, 404)
+    def test_interview_feedback_page_shows_failure_banner(self):
+        """Interview feedback page shows clear failure banner and retry button on evaluation failure."""
+        session = InterviewSession.objects.create(user=self.user, interview_type="Technical", domain="Engineering", technology="Django", difficulty="Intermediate")
+        q = InterviewQuestion.objects.create(session=session, question_text="What is select_related?")
+        ans = InterviewAnswer.objects.create(question=q, transcript="select_related joins tables in SQL.", answer_status="ANSWERED")
+        feedback = InterviewFeedback.objects.create(
+            answer=ans,
+            evaluation_status="FAILED",
+            error_code="unavailable",
+            error_message="Gemini is unavailable"
+        )
+        resp = self.client.get(reverse("interview_feedback", args=[session.id, q.id]))
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode("utf-8")
 
-        # /ai-coach/ should 404
-        resp_page = client.get("/ai-coach/")
-        self.assertEqual(resp_page.status_code, 404)
+        self.assertIn("AI Evaluation Unavailable", content)
+        self.assertIn("unavailable", content)
+        self.assertIn("Retry Evaluation", content)

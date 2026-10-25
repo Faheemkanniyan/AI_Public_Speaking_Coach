@@ -5,6 +5,32 @@
 
 {% block content %}
 <div class="container py-4 my-2">
+  {% if feedback.evaluation_status == 'FAILED' %}
+  <!-- Evaluation Failed Banner -->
+  <div class="glass-card p-4 mb-4 border-danger shadow-sm" style="border: 2px solid #dc3545 !important;">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-circle bg-danger bg-opacity-10 p-3 text-danger fs-3">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <div>
+          <h5 class="fw-bold mb-1 text-danger">AI Evaluation Unavailable</h5>
+          <p class="mb-0 text-dark small">{{ feedback.error_message|default:"Gemini AI evaluation could not be completed." }} (Error code: <code>{{ feedback.error_code|default:"evaluation_failed" }}</code>)</p>
+          <small class="text-secondary">Only measurable facts (speaking pace, filler count, word count) are shown below.</small>
+        </div>
+      </div>
+      <div>
+        <form action="{% url 'interview_retry_feedback' session.id question.id %}" method="POST">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger px-4 py-2 rounded-pill fw-bold shadow-sm">
+            <i class="bi bi-arrow-clockwise me-1"></i> Retry Evaluation
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h3 class="fw-bold mb-0" style="color: #1C1B18;">Question {{ question.question_number }} Feedback</h3>
     <div>
@@ -17,7 +43,7 @@
         </span>
         {% elif feedback.evaluation_status == 'FAILED' %}
         <span class="badge bg-warning-subtle text-warning border border-warning px-3 py-2 fs-5 rounded-pill me-2">
-          Temporarily unavailable
+          Evaluation Unavailable
         </span>
         <span class="badge bg-secondary-subtle text-secondary border border-secondary px-3 py-2 fs-5 rounded-pill">
           Score Pending
@@ -26,8 +52,8 @@
         <span class="badge {% if feedback.classification == 'Correct' %}bg-success-subtle text-success border border-success{% elif feedback.classification == 'Partially Correct' %}bg-warning-subtle text-warning border border-warning{% else %}bg-danger-subtle text-danger border border-danger{% endif %} px-3 py-2 fs-5 rounded-pill me-2">
           {{ feedback.classification }}
         </span>
-        <span class="badge {% if answer.score >= 80 %}bg-success-subtle text-success border border-success{% elif answer.score >= 60 %}bg-warning-subtle text-warning border border-warning{% else %}bg-danger-subtle text-danger border border-danger{% endif %} px-3 py-2 fs-5 rounded-pill">
-          Score: {{ answer.score }}/100
+        <span class="badge {% if feedback.rating_label == 'Excellent' %}bg-success-subtle text-success border border-success{% elif feedback.rating_label == 'Strong' %}bg-primary-subtle text-primary border border-primary{% elif feedback.rating_label == 'Developing' %}bg-warning-subtle text-warning border border-warning{% else %}bg-danger-subtle text-danger border border-danger{% endif %} px-3 py-2 fs-5 rounded-pill">
+          {{ feedback.rating_label|upper }}: {{ answer.score }}/100
         </span>
         {% endif %}
     </div>

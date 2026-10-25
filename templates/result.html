@@ -4,6 +4,43 @@
 {% block title %}Speech Evaluation Report — {{ APP_NAME }}{% endblock %}
 
 {% block content %}
+<style>
+.score-gauge-container {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+}
+.score-gauge-container svg {
+  width: 140px;
+  height: 140px;
+  transform: rotate(-90deg);
+  display: block;
+}
+.score-gauge-bg {
+  fill: none !important;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 8;
+}
+.score-gauge-bar {
+  fill: none !important;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.score-gauge-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+</style>
+
 <div class="container py-4 my-2">
   {% if is_processing %}
   <div class="glass-card p-5 my-5 text-center shadow-lg" style="max-width: 650px; margin: 0 auto; border: 2px solid #2E4637;">
@@ -31,6 +68,9 @@
           if (data.status === "completed") {
             clearInterval(pollInterval);
             window.location.reload();
+          } else if (data.status === "error") {
+            clearInterval(pollInterval);
+            window.location.reload();
           }
         }
       } catch (e) {
@@ -39,13 +79,77 @@
     }, 2000);
   })();
   </script>
+  {% elif evaluation_failed or session.status == 'evaluation_failed' %}
+  <!-- Evaluation Failed State: Clear Banner, Retry Button, and Measurable Facts Only -->
+  <div class="glass-card p-4 my-4 shadow-lg border-danger" style="border: 2px solid #dc3545 !important;">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-danger-subtle">
+      <div>
+        <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-1 rounded-pill mb-2">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i> AI EVALUATION UNAVAILABLE
+        </span>
+        <h2 class="fw-bold mb-1 text-light">{{ session.topic_title }}</h2>
+        <p class="text-danger small mb-0 fw-semibold">
+          {{ error_message|default:session.error_message|default:"Gemini AI evaluation could not be completed." }} (Error Code: <code>{{ error_code|default:session.error_code|default:"evaluation_failed" }}</code>)
+        </p>
+      </div>
+      <div>
+        <form method="POST" action="{% url 'retry_speech_evaluation' session.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger rounded-pill px-4 py-2 fw-bold shadow-sm">
+            <i class="bi bi-arrow-clockwise me-2"></i> Retry Evaluation
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Measurable facts only -->
+    <h5 class="fw-bold text-light mb-3">
+      <i class="bi bi-graph-up text-info me-2"></i> Measurable Facts <span class="badge bg-secondary text-light ms-2">AI evaluation unavailable</span>
+    </h5>
+    <div class="row g-3 mb-4 text-center">
+      <div class="col-6 col-md-3">
+        <div class="p-3 bg-dark rounded-3 border border-secondary">
+          <div class="display-6 fw-bold text-info">{{ session.duration_seconds }}s</div>
+          <small class="text-secondary fw-bold text-uppercase">Recorded Duration</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-3 bg-dark rounded-3 border border-secondary">
+          <div class="display-6 fw-bold text-light">{{ session.word_count }}</div>
+          <small class="text-secondary fw-bold text-uppercase">Total Words</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-3 bg-dark rounded-3 border border-secondary">
+          <div class="display-6 fw-bold text-success">{{ session.wpm }}</div>
+          <small class="text-secondary fw-bold text-uppercase">Speaking Pace (WPM)</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-3 bg-dark rounded-3 border border-secondary">
+          <div class="display-6 fw-bold text-warning">{{ session.filler_count }}</div>
+          <small class="text-secondary fw-bold text-uppercase">Filler Words</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-3 bg-dark rounded-3 border border-secondary mb-3">
+      <h6 class="text-secondary small fw-bold mb-2">RAW RECORDED TRANSCRIPT</h6>
+      <p class="text-light font-monospace small mb-0 lh-lg">{{ session.transcript|default:"(No speech transcript recorded)" }}</p>
+    </div>
+  </div>
   {% else %}
   <!-- 1. Top Bar & Action Buttons -->
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-secondary">
     <div>
-      <span class="badge bg-dark border border-success text-neon-green px-3 py-1 rounded-pill mb-2">
-        <i class="bi bi-check2-circle me-1"></i> AI EVALUATION COMPLETE
-      </span>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-dark border border-success text-neon-green px-3 py-1 rounded-pill">
+          <i class="bi bi-check2-circle me-1"></i> AI EVALUATION COMPLETE
+        </span>
+        <span class="badge bg-dark border border-secondary text-secondary px-3 py-1 rounded-pill">
+          <i class="bi bi-cpu me-1"></i> Evaluated by Gemini {{ report.model_name|default:"gemini-3-flash-preview" }}
+        </span>
+      </div>
       <h1 class="fw-bold mb-1">{{ session.topic_title }}</h1>
       <p class="text-secondary small mb-0">
         Recorded on {{ session.created_at|date:"F d, Y - H:i" }} &bull; Target Duration: <strong>{{ session.duration_seconds }}s</strong> &bull; Time Consumed: <strong class="{% if report.time_utilization_percent < 30 %}text-danger{% elif report.time_utilization_percent < 70 %}text-warning{% else %}text-neon-green{% endif %}">{{ report.time_consumed_seconds }}s ({{ report.time_utilization_percent }}% utilized)</strong>
@@ -113,9 +217,11 @@
         
         <div class="score-gauge-container mb-3">
           <svg viewBox="0 0 100 100">
-            <circle class="score-gauge-bg" cx="50" cy="50" r="40"></circle>
-            <circle class="score-gauge-bar" cx="50" cy="50" r="40"
-              style="stroke-dasharray: 251.2; stroke-dashoffset: {{ report.overall_score|default:80|add:'-100'|default:'50' }}%;">
+            <circle class="score-gauge-bg" cx="50" cy="50" r="40" fill="none" stroke="rgba(255, 255, 255, 0.12)" stroke-width="8"></circle>
+            <circle id="scoreGaugeBar" class="score-gauge-bar" cx="50" cy="50" r="40" fill="none"
+              stroke="{% if report.overall_score >= 90 %}#10B981{% elif report.overall_score >= 75 %}#3B82F6{% elif report.overall_score >= 60 %}#F59E0B{% else %}#EF4444{% endif %}"
+              stroke-width="8" stroke-linecap="round"
+              stroke-dasharray="251.33" stroke-dashoffset="251.33">
             </circle>
           </svg>
           <div class="score-gauge-text">
@@ -124,83 +230,140 @@
           </div>
         </div>
 
-        <span class="badge {% if report.overall_score >= 80 %}bg-success text-dark{% elif report.overall_score >= 65 %}bg-info text-dark{% elif report.overall_score >= 50 %}bg-warning text-dark{% elif report.overall_score >= 35 %}bg-secondary text-light{% else %}bg-danger text-light{% endif %} px-3 py-1 rounded-pill fw-bold">
-          {% if report.session.transcript.split|length < 5 %}
-            MINIMAL ATTEMPT (&lt; 5 WORDS)
-          {% elif report.overall_score >= 80 %}
-            EXECUTIVE ORATOR
-          {% elif report.overall_score >= 65 %}
-            PROFICIENT SPEAKER
-          {% elif report.overall_score >= 50 %}
-            DEVELOPING SPEAKER
-          {% elif report.overall_score >= 35 %}
-            EMERGING SPEAKER
-          {% else %}
-            NEEDS PRACTICE
-          {% endif %}
+        <span class="badge {% if report.rating_label == 'Excellent' %}bg-success text-dark{% elif report.rating_label == 'Strong' %}bg-primary text-light{% elif report.rating_label == 'Developing' %}bg-warning text-dark{% elif report.rating_label == 'Needs Practice' %}bg-danger text-light{% else %}bg-secondary text-light{% endif %} px-3 py-1 rounded-pill fw-bold">
+          {{ report.rating_label|upper }}
         </span>
+
+        <div class="p-2 rounded bg-dark border border-secondary mt-3 text-secondary" style="font-size: 0.75rem;">
+          <i class="bi bi-info-circle me-1"></i> Overall score is computed from 6 weighted speech competencies.
+        </div>
       </div>
     </div>
 
-    <!-- Right Column: 5 Core Competency Progress Bars -->
+    <!-- Right Column: 6 Core Competency Progress Bars & Evidence -->
     <div class="col-lg-8">
       <div class="glass-card p-4 h-100 d-flex flex-column justify-content-center">
-        <h5 class="fw-bold mb-4">Skill Competency Breakdown</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold mb-0">Skill Competency Breakdown</h5>
+          <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#formulaBox">
+            <i class="bi bi-calculator me-1"></i> Score Formula
+          </button>
+        </div>
+
+        <div class="collapse show mb-3" id="formulaBox">
+          <div class="p-3 rounded bg-dark border border-secondary text-secondary small">
+            <div class="fw-bold text-light mb-1"><i class="bi bi-info-circle me-1"></i> How this score is calculated</div>
+            Overall score = 25% Fluency + 20% Grammar + 15% Vocabulary + 15% Clarity + 15% Content Relevance + 10% Confidence/Delivery. (Webcam visual presence is evaluated separately).
+          </div>
+        </div>
 
         <div class="d-flex flex-column gap-3">
-          <!-- Grammar -->
+          <!-- Fluency (25%) -->
           <div>
             <div class="d-flex justify-content-between small fw-semibold mb-1">
-              <span>Grammar & Syntax Accuracy</span>
-              <span class="text-neon-green">{{ report.grammar_score }}/100</span>
-            </div>
-            <div class="progress progress-neon">
-              <div class="progress-bar progress-bar-neon" style="width: {{ report.grammar_score }}%;"></div>
-            </div>
-          </div>
-
-          <!-- Vocabulary -->
-          <div>
-            <div class="d-flex justify-content-between small fw-semibold mb-1">
-              <span>Lexical Variety & Vocabulary</span>
-              <span class="text-neon-blue">{{ report.vocabulary_score }}/100</span>
-            </div>
-            <div class="progress progress-neon">
-              <div class="progress-bar progress-bar-neon" style="width: {{ report.vocabulary_score }}%;"></div>
-            </div>
-          </div>
-
-          <!-- Confidence -->
-          <div>
-            <div class="d-flex justify-content-between small fw-semibold mb-1">
-              <span>Vocal Confidence & Delivery</span>
-              <span class="text-warning">{{ report.confidence_score }}/100</span>
-            </div>
-            <div class="progress progress-neon">
-              <div class="progress-bar bg-warning" style="width: {{ report.confidence_score }}%;"></div>
-            </div>
-          </div>
-
-          <!-- Fluency -->
-          <div>
-            <div class="d-flex justify-content-between small fw-semibold mb-1">
-              <span>Fluency & Rhythm</span>
+              <span>Fluency &amp; Rhythm (25%)</span>
               <span class="text-info">{{ report.fluency_score }}/100</span>
             </div>
             <div class="progress progress-neon">
               <div class="progress-bar bg-info" style="width: {{ report.fluency_score }}%;"></div>
             </div>
+            {% if report.fluency_evidence %}
+            <div class="mt-2 ps-2 border-start border-info border-2" style="font-size: 0.8rem;">
+              {% for ev in report.fluency_evidence %}
+              <div class="text-light-emphasis fst-italic">"{{ ev.quote }}" &mdash; <span class="text-secondary">{{ ev.reason }}</span></div>
+              {% endfor %}
+            </div>
+            {% endif %}
           </div>
 
-          <!-- Communication -->
+          <!-- Grammar (20%) -->
           <div>
             <div class="d-flex justify-content-between small fw-semibold mb-1">
-              <span>Overall Communication Impact</span>
-              <span class="text-neon-green">{{ report.communication_score }}/100</span>
+              <span>Grammar &amp; Syntax Accuracy (20%)</span>
+              <span class="text-neon-green">{{ report.grammar_score }}/100</span>
             </div>
             <div class="progress progress-neon">
-              <div class="progress-bar progress-bar-neon" style="width: {{ report.communication_score }}%;"></div>
+              <div class="progress-bar progress-bar-neon" style="width: {{ report.grammar_score }}%;"></div>
             </div>
+            {% if report.grammar_evidence %}
+            <div class="mt-2 ps-2 border-start border-success border-2" style="font-size: 0.8rem;">
+              {% for ev in report.grammar_evidence %}
+              <div class="text-light-emphasis fst-italic">"{{ ev.quote }}" &mdash; <span class="text-secondary">{{ ev.reason }}</span></div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Vocabulary (15%) -->
+          <div>
+            <div class="d-flex justify-content-between small fw-semibold mb-1">
+              <span>Lexical Variety &amp; Vocabulary (15%)</span>
+              <span class="text-neon-blue">{{ report.vocabulary_score }}/100</span>
+            </div>
+            <div class="progress progress-neon">
+              <div class="progress-bar progress-bar-neon" style="width: {{ report.vocabulary_score }}%;"></div>
+            </div>
+            {% if report.vocabulary_evidence %}
+            <div class="mt-2 ps-2 border-start border-primary border-2" style="font-size: 0.8rem;">
+              {% for ev in report.vocabulary_evidence %}
+              <div class="text-light-emphasis fst-italic">"{{ ev.quote }}" &mdash; <span class="text-secondary">{{ ev.reason }}</span></div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Clarity (15%) -->
+          <div>
+            <div class="d-flex justify-content-between small fw-semibold mb-1">
+              <span>Clarity (15%)</span>
+              <span class="text-neon-green">{{ report.clarity_score }}/100</span>
+            </div>
+            <div class="progress progress-neon">
+              <div class="progress-bar progress-bar-neon" style="width: {{ report.clarity_score }}%;"></div>
+            </div>
+            {% if report.clarity_evidence %}
+            <div class="mt-2 ps-2 border-start border-success border-2" style="font-size: 0.8rem;">
+              {% for ev in report.clarity_evidence %}
+              <div class="text-light-emphasis fst-italic">"{{ ev.quote }}" &mdash; <span class="text-secondary">{{ ev.reason }}</span></div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Content Relevance (15%) -->
+          <div>
+            <div class="d-flex justify-content-between small fw-semibold mb-1">
+              <span>Content &amp; Topic Relevance (15%)</span>
+              <span class="text-info">{{ report.content_relevance_score }}/100</span>
+            </div>
+            <div class="progress progress-neon">
+              <div class="progress-bar bg-info" style="width: {{ report.content_relevance_score }}%;"></div>
+            </div>
+            {% if report.content_relevance_evidence %}
+            <div class="mt-2 ps-2 border-start border-info border-2" style="font-size: 0.8rem;">
+              {% for ev in report.content_relevance_evidence %}
+              <div class="text-light-emphasis fst-italic">"{{ ev.quote }}" &mdash; <span class="text-secondary">{{ ev.reason }}</span></div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Confidence & Delivery (10%) -->
+          <div>
+            <div class="d-flex justify-content-between small fw-semibold mb-1">
+              <span>Vocal Confidence &amp; Delivery (10%)</span>
+              <span class="text-warning">{{ report.confidence_score }}/100</span>
+            </div>
+            <div class="progress progress-neon">
+              <div class="progress-bar bg-warning" style="width: {{ report.confidence_score }}%;"></div>
+            </div>
+            {% if report.confidence_evidence %}
+            <div class="mt-2 ps-2 border-start border-warning border-2" style="font-size: 0.8rem;">
+              {% for ev in report.confidence_evidence %}
+              <div class="text-light-emphasis fst-italic">"{{ ev.quote }}" &mdash; <span class="text-secondary">{{ ev.reason }}</span></div>
+              {% endfor %}
+            </div>
+            {% endif %}
           </div>
 
           <!-- Visual Presence & Body Language (Webcam) -->
@@ -387,8 +550,9 @@
       <table class="table table-dark table-hover align-middle mb-0">
         <thead class="text-secondary small">
           <tr>
-            <th style="width: 35%;">ORIGINAL PHRASE</th>
-            <th style="width: 35%;">RECOMMENDED CORRECTION</th>
+            <th style="width: 25%;">ORIGINAL PHRASE</th>
+            <th style="width: 20%;">TYPE</th>
+            <th style="width: 25%;">RECOMMENDED CORRECTION</th>
             <th>COACH EXPLANATION</th>
           </tr>
         </thead>
@@ -396,7 +560,17 @@
           {% for corr in report.corrections_list %}
           <tr>
             <td>
-              <span class="text-danger-emphasis text-decoration-line-through">{{ corr.original }}</span>
+              <span class="text-danger-emphasis text-decoration-line-through">"{{ corr.original }}"</span>
+            </td>
+            <td>
+              {% if corr.type == "likely_speech_recognition_error" %}
+              <span class="badge bg-secondary text-light">Speech Rec. Error</span>
+              <small class="text-muted d-block" style="font-size: 0.72rem;">(Not penalized in grammar)</small>
+              {% elif corr.type == "word_choice" %}
+              <span class="badge bg-info-subtle text-info border border-info">Word Choice</span>
+              {% else %}
+              <span class="badge bg-warning-subtle text-warning border border-warning">Grammar</span>
+              {% endif %}
             </td>
             <td>
               <span class="text-success fw-semibold">{{ corr.corrected|default:corr.correction }}</span>
@@ -544,6 +718,19 @@
       btn.innerHTML = originalText;
     });
   }
+
+  // Animate circular score gauge on load
+  document.addEventListener("DOMContentLoaded", function() {
+    const bar = document.getElementById("scoreGaugeBar");
+    if (bar) {
+      const score = {{ report.overall_score|default:0 }};
+      const circumference = 251.33;
+      const offset = circumference - (score / 100) * circumference;
+      requestAnimationFrame(() => {
+        bar.style.strokeDashoffset = offset;
+      });
+    }
+  });
 </script>
 {% endif %}
 {% endblock %}
