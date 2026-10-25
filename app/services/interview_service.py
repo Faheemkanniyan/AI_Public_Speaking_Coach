@@ -121,12 +121,10 @@ class InterviewService:
 
     def create_session(self, user, interview_type, domain, technology, difficulty, num_questions, language):
         """
-        Creates an InterviewSession and generates AI questions via Gemini.
-        Raises GeminiEvaluationError if Gemini fails (no fake canned questions).
+        Creates an InterviewSession and generates structured interview questions
+        from the curated questions bank without consuming Gemini API tokens.
+        Preserves Gemini API quota exclusively for speech and interview answer evaluation.
         """
-        if not self.api_key or not self.client:
-            raise GeminiEvaluationError(code="no_key", message="GEMINI_API_KEY is not set")
-
         session = InterviewSession.objects.create(
             user=user,
             interview_type=interview_type,
@@ -138,15 +136,7 @@ class InterviewService:
             status="IN_PROGRESS"
         )
 
-        try:
-            questions = self._generate_questions(interview_type, domain, technology, difficulty, num_questions, language)
-        except Exception as e:
-            mapped_e = map_gemini_exception(e, model_name=self.model_name)
-            session.status = "FAILED"
-            session.error_code = mapped_e.code
-            session.error_message = mapped_e.message
-            session.save()
-            raise mapped_e
+        questions = self._generate_questions(interview_type, domain, technology, difficulty, num_questions, language)
 
         for i, q_data in enumerate(questions):
             InterviewQuestion.objects.create(
@@ -163,64 +153,19 @@ class InterviewService:
 
     def _generate_questions(self, interview_type, domain, technology, difficulty, num_questions, language):
         """
-        Calls Gemini to generate interview questions tailored to domain and technology.
+        Generates structured interview questions from curated questions bank
+        without calling Gemini API.
         """
-        prompt = f"""You are a senior hiring manager and principal interviewer in the "{domain}" domain.
-Generate exactly {num_questions} realistic, rigorous {difficulty} level interview questions for a "{interview_type}" interview.
-Topic/Technology: "{technology}". Language: {language}.
+        from app.services.interview_questions_data import generate_local_interview_questions
+        return generate_local_interview_questions(
+            interview_type=interview_type,
+            domain=domain,
+            technology=technology,
+            difficulty=difficulty,
+            num_questions=num_questions,
+            language=language
+        )
 
-Requirements:
-- Questions must be deeply tailored to "{technology}".
-- If Technical/Coding: focus on core concepts, trade-offs, architecture, and problem-solving.
-- If HR/Behavioral: focus on teamwork, conflict resolution, leadership, and STAR scenarios.
-- Each question must be unique and professional.
-- For each question provide:
-  - expected_points: 3-5 core points a great answer must cover
-  - ideal_answer: concise model answer (3-6 sentences)
-  - evaluation_criteria: 3 key evaluation criteria
-"""
-
-        thinking = types.ThinkingConfig(thinking_budget=0) if hasattr(types, "ThinkingConfig") else None
-        config_kwargs = {
-            "response_mime_type": "application/json",
-            "response_schema": InterviewQuestionsListSchema,
-            "temperature": 0.0,
-        }
-        if thinking:
-            config_kwargs["thinking_config"] = thinking
-        config = types.GenerateContentConfig(**config_kwargs)
-
-        try:
-            response = call_gemini_with_retry(
-                self.client,
-                self.model_name,
-                prompt,
-                config=config,
-                max_retries=2
-            )
-            text = (response.text or "").strip()
-            data = json.loads(text)
-            raw_qs = data.get("questions", [])
-            if not raw_qs or len(raw_qs) == 0:
-                raise ValueError("Gemini returned an empty list of questions")
-
-            questions = []
-            for item in raw_qs[:num_questions]:
-                questions.append({
-                    "question": item.get("question"),
-                    "interview_type": item.get("interview_type", interview_type),
-                    "domain": item.get("domain", domain),
-                    "topic": item.get("topic", technology),
-                    "difficulty": item.get("difficulty", difficulty),
-                    "question_type": item.get("question_type", "Conceptual"),
-                    "expected_points": item.get("expected_points", []),
-                    "ideal_answer": item.get("ideal_answer", ""),
-                    "evaluation_criteria": item.get("evaluation_criteria", [])
-                })
-            return questions
-        except Exception as e:
-            logger.error(f"Failed to generate interview questions with Gemini: {e}")
-            raise map_gemini_exception(e, model_name=self.model_name)
 
     def evaluate_answer(self, answer_obj: InterviewAnswer, language: str) -> dict:
         """

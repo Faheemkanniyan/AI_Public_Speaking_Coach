@@ -14,25 +14,24 @@ class GroundedInterviewEvaluationTests(TestCase):
         self.service.api_key = "test_key"
         self.service.client = MagicMock()
 
-    def test_question_generation_fails_cleanly_without_canned_fallback(self):
-        """No canned questions when Gemini fails; raises GeminiEvaluationError."""
-        with patch.object(self.service, "_generate_questions", side_effect=GeminiEvaluationError("unavailable", "Gemini is unavailable")):
-            with self.assertRaises(GeminiEvaluationError) as ctx:
-                self.service.create_session(
-                    user=self.user,
-                    interview_type="Technical",
-                    domain="Software Engineering",
-                    technology="Python",
-                    difficulty="Intermediate",
-                    num_questions=3,
-                    language="English"
-                )
-            self.assertEqual(ctx.exception.code, "unavailable")
-            # Session recorded as FAILED
-            session = InterviewSession.objects.filter(user=self.user).first()
-            self.assertIsNotNone(session)
-            self.assertEqual(session.status, "FAILED")
-            self.assertEqual(session.error_code, "unavailable")
+    def test_question_generation_generates_structured_questions_without_gemini(self):
+        """Generates realistic structured questions without calling Gemini API."""
+        session = self.service.create_session(
+            user=self.user,
+            interview_type="Technical",
+            domain="Software Engineering",
+            technology="Python",
+            difficulty="Intermediate",
+            num_questions=3,
+            language="English"
+        )
+        self.assertEqual(session.status, "IN_PROGRESS")
+        self.assertEqual(session.questions.count(), 3)
+        q1 = session.questions.first()
+        self.assertTrue(len(q1.question_text) > 10)
+        expected_pts = json.loads(q1.expected_points_json)
+        self.assertGreaterEqual(len(expected_pts), 2)
+        self.assertTrue(len(q1.ideal_answer) > 10)
 
     def test_unanswered_or_empty_answer_scores_zero_without_llm_call(self):
         """Empty transcript gets 0 score and Not Answered classification without calling Gemini."""
