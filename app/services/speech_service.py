@@ -45,43 +45,39 @@ class SpeechService:
         Creates a SpeechSession and saves the audio file for background processing.
         """
         from app.models import Topic, SpeechSession, SpeechReport, Score, UserProfile, Statistic, VisualPresence
-        import json
-
         topic = None
         if topic_id:
             topic = Topic.objects.filter(id=topic_id).first()
-
-        audio_path = ""
-        if audio_file:
-            audio_path = self.save_audio_file(audio_file, user.id)
-
-            # Use AssemblyAI for transcription only if transcript was not captured by browser Web Speech API
-            if not transcript_text or not transcript_text.strip():
-                try:
-                    from app.services.assemblyai_service import AssemblyAIService
-                    aai_service = AssemblyAIService()
-                    if aai_service.is_enabled():
-                        full_audio_path = os.path.join(settings.BASE_DIR, audio_path)
-                        aai_result = aai_service.transcribe_audio(full_audio_path)
-                        if aai_result.get("status") == "completed" and aai_result.get("text"):
-                            transcript_text = aai_result.get("text", transcript_text)
-                            
-                            language = "en-US"
-                except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning(f"AssemblyAI transcription fallback: {e}")
 
         session = SpeechSession.objects.create(
             user=user,
             topic=topic,
             topic_title=topic_title or (topic.title if topic else "General Practice"),
-            transcript=transcript_text,
+            transcript=transcript_text or "",
             duration_seconds=int(duration_seconds or 60),
             language=language,
         )
-        if audio_path:
-            session.audio_file = audio_path
-            session.save()
+
+        if audio_file:
+            ext = os.path.splitext(getattr(audio_file, "name", "speech.webm"))[1].lower() or ".webm"
+            filename = f"speech_{uuid.uuid4().hex}{ext}"
+            session.audio_file.save(filename, audio_file, save=True)
+
+            # Use AssemblyAI for transcription if transcript was not provided
+            if not transcript_text or not transcript_text.strip():
+                try:
+                    from app.services.assemblyai_service import AssemblyAIService
+                    aai_service = AssemblyAIService()
+                    if aai_service.is_enabled():
+                        full_audio_path = session.audio_file.path
+                        aai_result = aai_service.transcribe_audio(full_audio_path)
+                        if aai_result.get("status") == "completed" and aai_result.get("text"):
+                            session.transcript = aai_result.get("text")
+                            session.language = "en-US"
+                            session.save()
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"AssemblyAI transcription fallback: {e}")
 
         # Parse and save visual metrics
         visual_metrics = None

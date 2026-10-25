@@ -16,7 +16,6 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import Topic, SpeechSession, SpeechReport
 from .services.speech_service import SpeechService
-from .services.ai_coach_service import AICoachService
 from .services.analytics_service import AnalyticsService
 from .utils import safe_int, ratelimit_view, validate_audio_file, validate_and_clean_visual_metrics
 
@@ -119,7 +118,11 @@ def api_speech_analyze(request):
             if not is_valid_audio:
                 return JsonResponse({"status": "error", "message": audio_err}, status=400)
 
-        if not transcript:
+        from .services.assemblyai_service import AssemblyAIService
+        aai_service = AssemblyAIService()
+        can_transcribe = bool(audio_file and aai_service.is_enabled())
+
+        if not transcript and not can_transcribe:
             return JsonResponse({
                 "status": "error",
                 "message": "Speech transcript cannot be empty. Please speak or record before analyzing."
@@ -139,7 +142,7 @@ def api_speech_analyze(request):
 
         speech_service = SpeechService()
         
-        # Synchronously create the session and save the audio file
+        # Create the session and save audio (runs AssemblyAI if transcript was empty)
         session = speech_service.create_session(
             user=request.user,
             topic_id=topic_id,
@@ -150,10 +153,22 @@ def api_speech_analyze(request):
             language=language,
             visual_metrics_raw=visual_metrics
         )
-        
-        # Perform speech analysis and generate report
-        session, report = speech_service.analyze_existing_session(session.id)
 
+        if not session.transcript or not session.transcript.strip():
+            return JsonResponse({
+                "status": "error",
+                "message": "Speech transcript cannot be empty. Transcription failed or no speech was detected."
+            }, status=400)
+
+        # Enqueue Celery task or fall back to synchronous analysis if Celery/broker is unavailable
+        try:
+            from app.tasks import analyze_speech_task
+            analyze_speech_task.delay(session.id)
+        except Exception as task_err:
+            logger.warning(f"Celery task dispatch failed, executing synchronously: {task_err}")
+            speech_service.analyze_existing_session(session.id)
+
+        report = getattr(session, "report", None)
         return JsonResponse({
             "status": "success",
             "session_id": session.id,
@@ -167,28 +182,24 @@ def api_speech_analyze(request):
         }, status=500)
 
 
-@require_POST
+@require_GET
 @login_required
-@ratelimit_view("10/m")
-def api_coach_chat(request):
+def api_speech_status(request, session_id):
     """
-    POST endpoint for interactive AI Coach conversational Q&A.
+    GET endpoint returning processing status for a speech session.
+    Used by result.html to poll until async Celery task finishes report generation.
     """
-    try:
-        body = json.loads(request.body.decode("utf-8"))
-        user_message = body.get("message", "").strip()
-    except Exception:
-        user_message = request.POST.get("message", "").strip()
-
-    if not user_message:
-        return JsonResponse({"status": "error", "message": "Message cannot be empty."}, status=400)
-
-    coach_service = AICoachService()
-    response_text = coach_service.get_coach_response(user_message, user=request.user)
-
+    session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
+    report = getattr(session, "report", None)
+    if report:
+        return JsonResponse({
+            "status": "completed",
+            "session_id": session.id,
+            "overall_score": report.overall_score
+        })
     return JsonResponse({
-        "status": "success",
-        "bot_response": response_text
+        "status": "processing",
+        "session_id": session.id
     })
 
 

@@ -611,7 +611,11 @@ function resetRecording() {
 function setupSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    console.warn("Web Speech API not supported in this browser. Please use Google Chrome or Microsoft Edge.");
+    console.warn("Web Speech API not supported in this browser. Your audio will be transcribed on the server.");
+    const sttStatus = document.getElementById("sttStatusText");
+    if (sttStatus) {
+      sttStatus.innerHTML = `<span class="text-warning"><i class="bi bi-info-circle me-1"></i> Live speech recognition is not supported in this browser (e.g. Firefox/Safari). Your recorded audio will be automatically transcribed on the server via AI transcription.</span>`;
+    }
     return;
   }
 
@@ -1148,7 +1152,7 @@ async function submitSpeechForAnalysis() {
     }
   }
 
-  if (!transcript) {
+  if (!transcript && !audioBlob) {
     showToast("Please speak into your microphone or type a speech transcript before analyzing.", "error");
     return;
   }

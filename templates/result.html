@@ -5,6 +5,41 @@
 
 {% block content %}
 <div class="container py-4 my-2">
+  {% if is_processing %}
+  <div class="glass-card p-5 my-5 text-center shadow-lg" style="max-width: 650px; margin: 0 auto; border: 2px solid #2E4637;">
+    <div class="spinner-grow text-success mb-4" style="width: 3.5rem; height: 3.5rem;" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <h2 class="font-serif fw-bold mb-3" style="color: #1C1B18;">AI Speech Analysis in Progress...</h2>
+    <p class="text-secondary mb-4">
+      Our AI speech recognition and executive communications engine is currently analyzing your vocal delivery, fluency, grammar, and body language.
+    </p>
+    <div class="progress mb-3" style="height: 8px;">
+      <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 100%;"></div>
+    </div>
+    <small class="text-muted"><i class="bi bi-clock-history me-1"></i> This page will automatically update once evaluation is complete.</small>
+  </div>
+
+  <script>
+  (function() {
+    const sessionId = "{{ session.id }}";
+    const pollInterval = setInterval(async () => {
+      try {
+        const resp = await fetch(`/api/speech/status/${sessionId}/`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.status === "completed") {
+            clearInterval(pollInterval);
+            window.location.reload();
+          }
+        }
+      } catch (e) {
+        console.warn("Status poll error:", e);
+      }
+    }, 2000);
+  })();
+  </script>
+  {% else %}
   <!-- 1. Top Bar & Action Buttons -->
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-secondary">
     <div>
@@ -510,4 +545,5 @@
     });
   }
 </script>
+{% endif %}
 {% endblock %}

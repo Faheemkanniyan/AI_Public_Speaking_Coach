@@ -4,11 +4,23 @@ Implements the 9 required database tables: Users (UserProfile), Topics, Speech S
 Speech Reports, Scores, Achievements, Statistics, History, and Settings.
 """
 
+import os
+import uuid
 import json
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
+
+def speech_audio_upload_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower() or ".webm"
+    return f"speech_audio/speech_{uuid.uuid4().hex}{ext}"
+
+
+def interview_audio_upload_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower() or ".webm"
+    return f"interview_audio/interview_{uuid.uuid4().hex}{ext}"
 
 
 class UserProfile(models.Model):
@@ -56,7 +68,7 @@ class SpeechSession(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="speech_sessions")
     topic = models.ForeignKey(Topic, on_delete=models.SET_NULL, null=True, blank=True, related_name="sessions")
     topic_title = models.CharField(max_length=255, blank=True)
-    audio_file = models.FileField(upload_to="speech_audio/", blank=True, null=True)
+    audio_file = models.FileField(upload_to=speech_audio_upload_path, blank=True, null=True)
     transcript = models.TextField(help_text="Transcribed speech text.")
     duration_seconds = models.IntegerField(default=60)
     language = models.CharField(max_length=20, default="en-US")
@@ -365,7 +377,7 @@ class InterviewAnswer(models.Model):
     User's voice answer to an interview question.
     """
     question = models.OneToOneField(InterviewQuestion, on_delete=models.CASCADE, related_name="answer")
-    audio_file = models.FileField(upload_to="interview_audio/", blank=True, null=True)
+    audio_file = models.FileField(upload_to=interview_audio_upload_path, blank=True, null=True)
     transcript = models.TextField(blank=True)
     duration_seconds = models.IntegerField(default=0)
     word_count = models.IntegerField(default=0)

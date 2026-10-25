@@ -10,6 +10,7 @@ Supports both live Google Gemini API calls and an offline intelligent NLP evalua
 import os
 import json
 import re
+import time
 import random
 import logging
 from django.conf import settings
@@ -21,6 +22,32 @@ try:
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
+
+
+def call_gemini_with_retry(client, model, contents, config=None, max_retries=3, base_delay=1.0):
+    """
+    Executes a Gemini API request with exponential backoff retry (2-3 attempts).
+    Catches transient network and rate limit errors while avoiding endless retries on invalid auth.
+    """
+    last_exception = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            kwargs = {"model": model, "contents": contents}
+            if config:
+                kwargs["config"] = config
+            return client.models.generate_content(**kwargs)
+        except Exception as e:
+            last_exception = e
+            err_str = str(e).lower()
+            if "404" in err_str or "not_found" in err_str or "not found" in err_str or "invalid api key" in err_str or "unauthenticated" in err_str or "bad request" in err_str:
+                raise e
+            if attempt < max_retries:
+                sleep_sec = base_delay * (2 ** (attempt - 1))
+                logger.warning(f"Gemini API transient failure (attempt {attempt}/{max_retries}): {e}. Retrying in {sleep_sec}s...")
+                time.sleep(sleep_sec)
+            else:
+                logger.error(f"Gemini API request failed after {max_retries} attempts: {e}")
+                raise last_exception
 
 
 def _to_score(value) -> int:
@@ -55,7 +82,7 @@ class GeminiSpeechAnalyzer:
         if self.api_key and GENAI_AVAILABLE:
             try:
                 self.client = genai.Client(api_key=self.api_key)
-                self.model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
+                self.model_name = getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash")
             except Exception as e:
                 logger.warning(f"Failed to initialize Gemini client: {e}")
                 self.client = None
@@ -125,10 +152,12 @@ CRITICAL RULES:
         try:
             from google.genai import types
             config = types.GenerateContentConfig(temperature=0.1)
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
+            response = call_gemini_with_retry(
+                self.client,
+                self.model_name,
+                prompt,
                 config=config,
+                max_retries=3,
             )
             cleaned = (response.text or "").strip()
             if cleaned and len(cleaned) >= len(raw_transcript) * 0.5:
@@ -214,15 +243,20 @@ CRITICAL RULES:
                 response_mime_type="application/json",
                 temperature=0.2
             )
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
+            response = call_gemini_with_retry(
+                self.client,
+                self.model_name,
+                prompt,
                 config=config,
+                max_retries=3,
             )
         except Exception:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
+            response = call_gemini_with_retry(
+                self.client,
+                self.model_name,
+                prompt,
+                config=None,
+                max_retries=2,
             )
         text = response.text.strip()
         # Remove markdown fence if present

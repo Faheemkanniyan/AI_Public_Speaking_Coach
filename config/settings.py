@@ -205,8 +205,12 @@ CELERY_ACCEPT_CONTENT = ["json"]
 
 CELERY_TASK_SERIALIZER = "json"
 
-CELERY_RESULT_SERIALIZER = "json"
-
 CELERY_TIMEZONE = "UTC"
-CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_ALWAYS_EAGER = os.getenv(
+    "CELERY_TASK_ALWAYS_EAGER",
+    "False" if (os.getenv("CELERY_BROKER_URL") or os.getenv("REDIS_URL")) else "True"
+).lower() in ("true", "1")
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# Google Gemini Model Configuration
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")

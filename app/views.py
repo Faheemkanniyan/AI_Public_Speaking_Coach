@@ -278,8 +278,11 @@ def result_view(request, session_id):
     session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
     report = getattr(session, "report", None)
     if not report:
-        messages.warning(request, "Analysis report is being generated or not available.")
-        return redirect("history")
+        return render(request, "result.html", {
+            "session": session,
+            "report": None,
+            "is_processing": True,
+        })
 
     context = {
         "session": session,
@@ -507,13 +510,6 @@ def profile_view(request):
     }
     return render(request, "profile.html", context)
 
-
-@login_required
-def ai_coach_view(request):
-    """
-    AI Coach feature has been removed. Redirect to dashboard.
-    """
-    return redirect("dashboard")
 
 
 @login_required

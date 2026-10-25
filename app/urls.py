@@ -17,7 +17,6 @@ urlpatterns = [
     path('report/download/<int:session_id>/', views.download_report_pdf, name='download_report_pdf'),
     path('analytics/', views.analytics_view, name='analytics'),
     path('profile/', views.profile_view, name='profile'),
-    path('ai-coach/', views.ai_coach_view, name='ai_coach'),
     path('settings/', views.settings_view, name='settings_page'),
     path('onboarding/', views.onboarding_view, name='onboarding'),
     path('progress/daily/', views.progress_daily_view, name='progress_daily'),
@@ -66,8 +65,8 @@ urlpatterns = [
     path('api/topics/random/', api_views.api_random_topic, name='api_random_topic'),
     path('api/speech/refine-transcript/', api_views.api_refine_transcript, name='api_refine_transcript'),
     path('api/speech/analyze/', api_views.api_speech_analyze, name='api_speech_analyze'),
+    path('api/speech/status/<int:session_id>/', api_views.api_speech_status, name='api_speech_status'),
     path('api/speech/generate-tts/<int:session_id>/', api_views.api_generate_tts, name='api_generate_tts'),
-    path('api/coach/chat/', api_views.api_coach_chat, name='api_coach_chat'),
     path('api/analytics/data/', api_views.api_analytics_data, name='api_analytics_data'),
 
     # Private Authenticated Media

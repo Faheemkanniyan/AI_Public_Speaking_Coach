@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import uuid
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
@@ -70,22 +71,6 @@ def interview_question_view(request, session_id, question_id):
                 messages.error(request, audio_err)
                 return redirect('interview_question', session_id=session.id, question_id=question.id)
 
-        # Basic STT or handle file
-        speech_service = SpeechService()
-        audio_path = ""
-        if audio_file:
-            audio_path = speech_service.save_audio_file(audio_file, request.user.id)
-            if not transcript or not transcript.strip():
-                try:
-                    aai_service = AssemblyAIService()
-                    if aai_service.is_enabled():
-                        full_audio_path = os.path.join(settings.BASE_DIR, audio_path)
-                        aai_result = aai_service.transcribe_audio(full_audio_path)
-                        if aai_result.get("status") == "completed" and aai_result.get("text"):
-                            transcript = aai_result.get("text", transcript)
-                except Exception:
-                    pass
-        
         service = InterviewService()
         word_count = len(transcript.split())
         filler_count = service.analyze_filler_words(transcript)
@@ -98,12 +83,31 @@ def interview_question_view(request, session_id, question_id):
             question=question,
             transcript=transcript,
             duration_seconds=duration_seconds,
-            audio_file=audio_path,
             word_count=word_count,
             filler_count=filler_count,
             speaking_rate=speaking_rate,
             answer_status=answer_status
         )
+
+        if audio_file:
+            ext = os.path.splitext(getattr(audio_file, "name", "interview.webm"))[1].lower() or ".webm"
+            filename = f"interview_{uuid.uuid4().hex}{ext}"
+            answer.audio_file.save(filename, audio_file, save=True)
+
+            if not transcript or not transcript.strip():
+                try:
+                    aai_service = AssemblyAIService()
+                    if aai_service.is_enabled():
+                        aai_result = aai_service.transcribe_audio(answer.audio_file.path)
+                        if aai_result.get("status") == "completed" and aai_result.get("text"):
+                            answer.transcript = aai_result.get("text")
+                            answer.word_count = len(answer.transcript.split())
+                            answer.filler_count = service.analyze_filler_words(answer.transcript)
+                            answer.speaking_rate = int((answer.word_count / max(1, duration_seconds)) * 60) if duration_seconds > 0 else 0
+                            answer.answer_status = "ANSWERED"
+                            answer.save()
+                except Exception:
+                    pass
         
         visual_metrics_raw = request.POST.get("visual_metrics")
         if visual_metrics_raw:
