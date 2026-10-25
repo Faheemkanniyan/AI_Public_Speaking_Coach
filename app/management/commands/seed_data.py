@@ -9,55 +9,35 @@ from app.models import (
     UserProfile, Topic, SpeechSession, SpeechReport,
     Achievement, Statistic, Setting
 )
-from app.services.report_service import ReportService
+import os
+import secrets
 import datetime
 import json
 from django.utils import timezone
-
+from django.conf import settings
+from django.core.management.base import BaseCommand
+from django.contrib.auth.models import User
+from app.models import (
+    UserProfile, Topic, SpeechSession, SpeechReport,
+    Achievement, Statistic, Setting
+)
+from app.services.report_service import ReportService
 
 
 class Command(BaseCommand):
     help = "Seeds SpeakPro AI with default topics, sample user, demo speeches, reports, and badges."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--with-demo-users",
+            action="store_true",
+            help="Create demo and admin users even when DEBUG is False.",
+        )
+
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS("Starting SpeakPro AI database seeding..."))
 
-        # 1. Create Default Users (Admin & Demo Speaker)
-        admin_user, _ = User.objects.get_or_create(
-            username="admin",
-            defaults={
-                "email": "admin@speakpro.ai",
-                "is_staff": True,
-                "is_superuser": True
-            }
-        )
-        admin_user.set_password("admin12345")
-        admin_user.save()
-
-        speaker_user, _ = User.objects.get_or_create(
-            username="speaker",
-            defaults={
-                "email": "speaker@speakpro.ai",
-                "first_name": "Alex",
-                "last_name": "Orator"
-            }
-        )
-        speaker_user.set_password("speakpro2026")
-        speaker_user.save()
-
-        # Ensure profiles exist
-        profile, _ = UserProfile.objects.get_or_create(user=speaker_user)
-        profile.professional_role = "Senior Product Lead & Public Speaker"
-        profile.bio = "Passionate about executive storytelling, keynotes, and vocal clarity."
-        profile.practice_streak = 5
-        profile.total_practice_time = 42
-        profile.average_score = 83.4
-        profile.highest_score = 92.0
-        profile.save()
-
-        self.stdout.write(self.style.SUCCESS("[OK] Users 'admin' and 'speaker' ready."))
-
-        # 2. Seed Speaking Topics (15 Diverse Prompts)
+        # 1. Seed Speaking Topics (Always safe in all environments)
         topics_data = [
             ("Describe your greatest personal or professional achievement.", "general", "Intermediate"),
             ("What is the most important lesson you learned from a failure?", "general", "Intermediate"),
@@ -84,6 +64,53 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"[OK] Seeded {len(topics_data)} speaking topics."))
 
+        should_create_users = settings.DEBUG or options.get("with_demo_users", False)
+        if not should_create_users:
+            self.stdout.write(self.style.WARNING("Production mode: Skipped demo and admin user creation. Use --with-demo-users to seed users."))
+            return
+
+        # 2. Create Default Users (Admin & Demo Speaker)
+        admin_password = os.getenv("ADMIN_PASSWORD")
+        generated_password = False
+        if not admin_password:
+            admin_password = secrets.token_urlsafe(16)
+            generated_password = True
+            self.stdout.write(self.style.WARNING(f"\n[SECURITY] Generated one-time admin password: {admin_password}\n"))
+
+        admin_user, _ = User.objects.get_or_create(
+            username="admin",
+            defaults={
+                "email": "admin@speakpro.ai",
+                "is_staff": True,
+                "is_superuser": True
+            }
+        )
+        admin_user.set_password(admin_password)
+        admin_user.save()
+
+        speaker_password = os.getenv("DEMO_SPEAKER_PASSWORD", "speakpro2026")
+        speaker_user, _ = User.objects.get_or_create(
+            username="speaker",
+            defaults={
+                "email": "speaker@speakpro.ai",
+                "first_name": "Alex",
+                "last_name": "Orator"
+            }
+        )
+        speaker_user.set_password(speaker_password)
+        speaker_user.save()
+
+        # Ensure profiles exist
+        profile, _ = UserProfile.objects.get_or_create(user=speaker_user)
+        profile.professional_role = "Senior Product Lead & Public Speaker"
+        profile.bio = "Passionate about executive storytelling, keynotes, and vocal clarity."
+        profile.practice_streak = 5
+        profile.total_practice_time = 42
+        profile.average_score = 83.4
+        profile.highest_score = 92.0
+        profile.save()
+
+        self.stdout.write(self.style.SUCCESS("[OK] Users 'admin' and 'speaker' ready."))
         # 3. Seed Achievement Badges for 'speaker' user
         badges_data = [
             ("First Speech", "Completed your very first AI speech evaluation.", "bi-mic-fill"),
@@ -215,6 +242,6 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("==============================================="))
         self.stdout.write(self.style.SUCCESS("  SPEAKPRO AI SEED DATA COMPLETE!             "))
-        self.stdout.write(self.style.SUCCESS("  Demo Account -> username: speaker / speakpro2026 "))
-        self.stdout.write(self.style.SUCCESS("  Admin Account-> username: admin   / admin12345   "))
+        self.stdout.write(self.style.SUCCESS(f"  Demo Account -> username: speaker / {speaker_password} "))
+        self.stdout.write(self.style.SUCCESS(f"  Admin Account-> username: admin   / {admin_password}   "))
         self.stdout.write(self.style.SUCCESS("==============================================="))

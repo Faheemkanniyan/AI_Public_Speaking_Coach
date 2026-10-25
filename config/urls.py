@@ -5,9 +5,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import HttpResponseForbidden
+
+def block_public_tts(request, path=""):
+    return HttpResponseForbidden("Public access to TTS audio is disabled.")
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('media/tts/<path:path>', block_public_tts, name='block_public_tts'),
     path('', include('app.urls')),
 ]
 

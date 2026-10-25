@@ -162,9 +162,12 @@
           <p class="text-dark">{{ feedback.feedback_text }}</p>
           {% if feedback.evaluation_status == 'FAILED' %}
           <div class="mt-3">
-              <a href="{% url 'interview_retry_feedback' session.id question.id %}" class="btn btn-warning">
-                  <i class="bi bi-arrow-clockwise me-2"></i>Retry Evaluation
-              </a>
+              <form action="{% url 'interview_retry_feedback' session.id question.id %}" method="POST" class="d-inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-warning">
+                      <i class="bi bi-arrow-clockwise me-2"></i>Retry Evaluation
+                  </button>
+              </form>
           </div>
           {% endif %}
         </div>

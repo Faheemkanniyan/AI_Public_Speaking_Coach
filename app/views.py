@@ -11,7 +11,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout, authenticate
 from django.contrib import messages
-from django.http import HttpResponse, Http404, JsonResponse
+from django.http import HttpResponse, Http404, JsonResponse, FileResponse
+from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.conf import settings
@@ -124,9 +125,10 @@ def login_view(request):
     return render(request, "auth/login.html", {"form": form})
 
 
+@require_POST
 def logout_view(request):
     """
-    Log out user.
+    Log out user. Must be a POST request for security.
     """
     logout(request)
     messages.info(request, "You have been logged out successfully.")
@@ -334,9 +336,10 @@ def history_view(request):
 
 
 @login_required
+@require_POST
 def delete_session_view(request, session_id):
     """
-    Deletes a speech practice session and its report.
+    Deletes a speech practice session and its report. Must be a POST request.
     """
     session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
     session.delete()
@@ -374,6 +377,95 @@ def download_report_pdf(request, session_id):
         response = HttpResponse(f.read(), content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="SpeakPro_Report_Session_{session.id}.pdf"'
         return response
+
+
+@login_required
+def private_tts_media_view(request, session_id):
+    """
+    Authenticated streaming of private TTS audio. Ensures session.user == request.user.
+    """
+    session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
+    report = getattr(session, "report", None)
+    if not report or not report.tts_audio_path:
+        raise Http404("TTS audio not found.")
+
+    raw_path = report.tts_audio_path.lstrip("/").replace("media/", "")
+    filepath = Path(settings.MEDIA_ROOT) / raw_path
+    if not filepath.exists():
+        filepath = Path(settings.MEDIA_ROOT) / "tts" / Path(report.tts_audio_path).name
+    if not filepath.exists():
+        filepath = Path(settings.BASE_DIR) / report.tts_audio_path.lstrip("/")
+    if not filepath.exists():
+        raise Http404("TTS audio file not found on disk.")
+
+    return FileResponse(open(filepath, "rb"), content_type="audio/mpeg")
+
+
+@login_required
+def private_speech_audio_view(request, session_id):
+    """
+    Authenticated streaming of private uploaded speech practice audio.
+    """
+    session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
+    if not session.audio_file:
+        raise Http404("Speech audio not found.")
+
+    try:
+        f = session.audio_file.open("rb")
+    except Exception:
+        filepath = Path(settings.BASE_DIR) / str(session.audio_file).lstrip("/")
+        if not filepath.exists():
+            raise Http404("Audio file not found on disk.")
+        f = open(filepath, "rb")
+
+    ext = Path(str(session.audio_file)).suffix.lower()
+    content_types = {
+        ".webm": "audio/webm",
+        ".wav": "audio/wav",
+        ".mp3": "audio/mpeg",
+        ".ogg": "audio/ogg",
+        ".m4a": "audio/mp4",
+    }
+    content_type = content_types.get(ext, "audio/webm")
+    return FileResponse(f, content_type=content_type)
+
+
+@login_required
+def private_interview_audio_view(request, answer_id):
+    """
+    Authenticated streaming of private interview question answer audio.
+    """
+    from .models import InterviewAnswer
+    answer = get_object_or_404(InterviewAnswer, id=answer_id, question__session__user=request.user)
+    if not answer.audio_file:
+        raise Http404("Interview audio not found.")
+
+    try:
+        f = answer.audio_file.open("rb")
+    except Exception:
+        filepath = Path(settings.BASE_DIR) / str(answer.audio_file).lstrip("/")
+        if not filepath.exists():
+            raise Http404("Interview audio file not found on disk.")
+        f = open(filepath, "rb")
+
+    ext = Path(str(answer.audio_file)).suffix.lower()
+    content_types = {
+        ".webm": "audio/webm",
+        ".wav": "audio/wav",
+        ".mp3": "audio/mpeg",
+        ".ogg": "audio/ogg",
+        ".m4a": "audio/mp4",
+    }
+    content_type = content_types.get(ext, "audio/webm")
+    return FileResponse(f, content_type=content_type)
+
+
+@login_required
+def private_pdf_report_view(request, session_id):
+    """
+    Authenticated private PDF report streaming.
+    """
+    return download_report_pdf(request, session_id)
 
 
 @login_required

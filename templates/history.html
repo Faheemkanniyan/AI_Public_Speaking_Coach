@@ -73,9 +73,9 @@
                 <a href="{% url 'download_report_pdf' sess.id %}" class="btn btn-sm btn-outline-info rounded-circle" title="Download PDF Report">
                   <i class="bi bi-file-earmark-pdf-fill"></i>
                 </a>
-                <a href="{% url 'delete_session' sess.id %}" class="btn btn-sm btn-outline-danger rounded-circle" title="Delete Speech" onclick="return confirm('Are you sure you want to delete this speech recording and report?');">
+                <button type="button" class="btn btn-sm btn-outline-danger rounded-circle" title="Delete Speech" data-bs-toggle="modal" data-bs-target="#deleteSessionModal" data-session-id="{{ sess.id }}" data-session-title="{{ sess.topic_title|default:'Speech Session' }}">
                   <i class="bi bi-trash3-fill"></i>
-                </a>
+                </button>
               </div>
             </td>
           </tr>
@@ -118,4 +118,48 @@
     {% endif %}
   </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteSessionModal" tabindex="-1" aria-labelledby="deleteSessionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-light border border-secondary shadow">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title" id="deleteSessionModalLabel">Confirm Deletion</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong id="deleteSessionTopic">this speech session</strong> and its report? This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+        <form id="deleteSessionForm" method="POST" action="">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger rounded-pill px-4">Delete</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const deleteModal = document.getElementById('deleteSessionModal');
+  if (deleteModal) {
+    deleteModal.addEventListener('show.bs.modal', function(event) {
+      const button = event.relatedTarget;
+      if (!button) return;
+      const sessionId = button.getAttribute('data-session-id');
+      const sessionTitle = button.getAttribute('data-session-title');
+      const form = document.getElementById('deleteSessionForm');
+      const topicSpan = document.getElementById('deleteSessionTopic');
+      if (form) {
+        form.action = `/history/delete/${sessionId}/`;
+      }
+      if (topicSpan) {
+        topicSpan.textContent = sessionTitle ? `"${sessionTitle}"` : "this speech session";
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

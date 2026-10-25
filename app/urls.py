@@ -47,4 +47,10 @@ urlpatterns = [
     path('api/speech/generate-tts/<int:session_id>/', api_views.api_generate_tts, name='api_generate_tts'),
     path('api/coach/chat/', api_views.api_coach_chat, name='api_coach_chat'),
     path('api/analytics/data/', api_views.api_analytics_data, name='api_analytics_data'),
+
+    # Private Authenticated Media
+    path('media-private/tts/<int:session_id>/', views.private_tts_media_view, name='private_tts_media'),
+    path('media-private/speech/<int:session_id>/', views.private_speech_audio_view, name='private_speech_audio'),
+    path('media-private/interview/<int:answer_id>/', views.private_interview_audio_view, name='private_interview_audio'),
+    path('media-private/pdf/<int:session_id>/', views.private_pdf_report_view, name='private_pdf_report'),
 ]

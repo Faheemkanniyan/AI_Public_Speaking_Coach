@@ -5,6 +5,7 @@ D:\\AI_Public_Speaking_Coach\\reports\\ using ReportLab.
 """
 
 import os
+import uuid
 import json
 from pathlib import Path
 from django.conf import settings
@@ -35,7 +36,7 @@ class ReportService:
         if not REPORTLAB_AVAILABLE:
             return ""
 
-        filename = f"speakpro_report_session_{report.session.id}.pdf"
+        filename = f"speakpro_report_{uuid.uuid4().hex}.pdf"
         dest_path = self.reports_dir / filename
 
         doc = SimpleDocTemplate(

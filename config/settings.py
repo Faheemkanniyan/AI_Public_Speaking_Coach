@@ -13,13 +13,28 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables if .env exists, overriding existing to allow hot-reloading keys
 load_dotenv(BASE_DIR / ".env", override=True)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-speakpro-ai-public-speaking-coach-2026-secret-key-!@#")
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
+DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = ["*"]
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-dev-only-secret-key-placeholder"
+    else:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set in environment when DEBUG is False.")
+
+allowed_hosts_raw = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_raw.split(",") if h.strip()]
+
+# Production security settings when DEBUG is False
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() in ("true", "1", "yes")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # Application definition
 INSTALLED_APPS = [

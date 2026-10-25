@@ -18,7 +18,7 @@ from .models import Topic, SpeechSession, SpeechReport
 from .services.speech_service import SpeechService
 from .services.ai_coach_service import AICoachService
 from .services.analytics_service import AnalyticsService
-from .utils import safe_int
+from .utils import safe_int, ratelimit_view, validate_audio_file, validate_and_clean_visual_metrics
 
 
 @require_GET
@@ -61,6 +61,7 @@ def api_random_topic(request):
 
 @require_POST
 @login_required
+@ratelimit_view("10/m")
 def api_refine_transcript(request):
     """
     POST endpoint to refine raw speech-to-text transcript from microphone.
@@ -89,6 +90,7 @@ def api_refine_transcript(request):
 
 @require_POST
 @login_required
+@ratelimit_view("10/m")
 def api_speech_analyze(request):
     """
     POST endpoint to evaluate a speech session.
@@ -112,6 +114,11 @@ def api_speech_analyze(request):
         language = request.POST.get("language", "en-US")
         audio_file = request.FILES.get("audio_file", None)
 
+        if audio_file:
+            is_valid_audio, audio_err = validate_audio_file(audio_file)
+            if not is_valid_audio:
+                return JsonResponse({"status": "error", "message": audio_err}, status=400)
+
         if not transcript:
             return JsonResponse({
                 "status": "error",
@@ -119,6 +126,16 @@ def api_speech_analyze(request):
             }, status=400)
 
         visual_metrics = request.POST.get("visual_metrics", None)
+        if visual_metrics:
+            try:
+                vm_data = json.loads(visual_metrics)
+                cleaned_vm = validate_and_clean_visual_metrics(vm_data)
+                visual_metrics = json.dumps(cleaned_vm)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Invalid visual_metrics format. Must be valid JSON."
+                }, status=400)
 
         speech_service = SpeechService()
         
@@ -152,6 +169,7 @@ def api_speech_analyze(request):
 
 @require_POST
 @login_required
+@ratelimit_view("10/m")
 def api_coach_chat(request):
     """
     POST endpoint for interactive AI Coach conversational Q&A.
@@ -189,6 +207,7 @@ def api_analytics_data(request):
 def api_generate_tts(request, session_id):
     """
     POST endpoint to generate TTS feedback for a session.
+    Returns authenticated private media streaming URL.
     """
     try:
         openai_key = getattr(settings, "OPENAI_API_KEY", "") or os.getenv("OPENAI_API_KEY", "")
@@ -200,8 +219,9 @@ def api_generate_tts(request, session_id):
         session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
         report = session.report
         
+        private_tts_url = f"/media-private/tts/{session_id}/"
         if report.tts_audio_path:
-            return JsonResponse({"status": "success", "audio_url": report.tts_audio_path})
+            return JsonResponse({"status": "success", "audio_url": private_tts_url})
             
         # Construct summary feedback text for TTS
         tts_text = f"Here is your feedback. Overall Score: {report.overall_score} out of 100. "
@@ -217,12 +237,12 @@ def api_generate_tts(request, session_id):
         tts_text += report.summary_feedback
         
         tts_service = TTSService()
-        audio_url = tts_service.generate_feedback_audio(tts_text, session_id)
+        audio_rel_path = tts_service.generate_feedback_audio(tts_text, session_id)
         
-        if audio_url:
-            report.tts_audio_path = audio_url
-            report.save()
-            return JsonResponse({"status": "success", "audio_url": audio_url})
+        if audio_rel_path:
+            report.tts_audio_path = audio_rel_path
+            report.save(update_fields=["tts_audio_path"])
+            return JsonResponse({"status": "success", "audio_url": private_tts_url})
         else:
             return JsonResponse({"status": "error", "message": "Failed to generate TTS audio."}, status=500)
             

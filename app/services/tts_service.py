@@ -1,4 +1,5 @@
 import os
+import uuid
 import requests
 import logging
 from django.conf import settings
@@ -22,19 +23,15 @@ class TTSService:
 
     def generate_feedback_audio(self, text: str, session_id: int) -> str:
         """
-        Generates TTS for the given text and saves it as an mp3.
-        Returns the relative media URL of the saved file, or empty string on failure.
+        Generates TTS for the given text and saves it as an mp3 with a random UUID.
+        Returns the relative path (e.g. tts/<filename>.mp3) of the saved file, or empty string on failure.
         """
         if not self.is_enabled():
             logger.warning("OPENAI_API_KEY is not set. TTS is disabled.")
             return ""
 
-        filename = f"feedback_session_{session_id}.mp3"
+        filename = f"feedback_{uuid.uuid4().hex}.mp3"
         filepath = os.path.join(self.media_dir, filename)
-        
-        # If already exists, return the cached version
-        if os.path.exists(filepath):
-            return f"{settings.MEDIA_URL}tts/{filename}"
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -53,7 +50,7 @@ class TTSService:
                 with open(filepath, "wb") as f:
                     for chunk in response.iter_content(chunk_size=1024):
                         f.write(chunk)
-                return f"{settings.MEDIA_URL}tts/{filename}"
+                return f"tts/{filename}"
             else:
                 logger.error(f"OpenAI TTS API Error: {response.status_code} - {response.text}")
                 return ""

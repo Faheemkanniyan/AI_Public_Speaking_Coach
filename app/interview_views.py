@@ -1,16 +1,17 @@
 import json
+import math
+import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import JsonResponse
+from django.conf import settings
 from .models import InterviewSession, InterviewQuestion, InterviewAnswer, InterviewFeedback
 from .services.interview_service import InterviewService
 from .services.speech_service import SpeechService
 from .services.assemblyai_service import AssemblyAIService
-from .utils import safe_int
-import math
-import os
-from django.conf import settings
+from .utils import safe_int, ratelimit_view, validate_audio_file, validate_and_clean_visual_metrics
 
 @login_required
 def interview_setup_view(request):
@@ -48,6 +49,7 @@ def interview_setup_view(request):
     return render(request, "interview_setup.html")
 
 @login_required
+@ratelimit_view("10/m")
 def interview_question_view(request, session_id, question_id):
     session = get_object_or_404(InterviewSession, id=session_id, user=request.user)
     question = get_object_or_404(InterviewQuestion, id=question_id, session=session)
@@ -61,6 +63,12 @@ def interview_question_view(request, session_id, question_id):
         raw_duration = request.POST.get("duration", 0)
         duration_seconds = safe_int(raw_duration, default=0, min=0, clamp=True)
         audio_file = request.FILES.get("audio_file")
+
+        if audio_file:
+            is_valid_audio, audio_err = validate_audio_file(audio_file)
+            if not is_valid_audio:
+                messages.error(request, audio_err)
+                return redirect('interview_question', session_id=session.id, question_id=question.id)
 
         # Basic STT or handle file
         speech_service = SpeechService()
@@ -100,18 +108,21 @@ def interview_question_view(request, session_id, question_id):
         visual_metrics_raw = request.POST.get("visual_metrics")
         if visual_metrics_raw:
             try:
-                vm_data = json.loads(visual_metrics_raw)
-                from app.models import VisualPresence
-                VisualPresence.objects.create(
-                    interview_answer=answer,
-                    eye_contact_pct=vm_data.get("eye_contact_pct", 0),
-                    expression_variety_score=vm_data.get("expression_variety_score", 0),
-                    posture_score=vm_data.get("posture_score", 0),
-                    face_detected_pct=vm_data.get("face_detected_pct", 0),
-                    gesture_activity_score=vm_data.get("gesture_activity_score")
-                )
+                vm_data = json.loads(visual_metrics_raw) if isinstance(visual_metrics_raw, str) else visual_metrics_raw
+                cleaned_vm = validate_and_clean_visual_metrics(vm_data)
+                if cleaned_vm:
+                    from app.models import VisualPresence
+                    VisualPresence.objects.create(
+                        interview_answer=answer,
+                        eye_contact_pct=cleaned_vm.get("eye_contact_pct", 0),
+                        expression_variety_score=cleaned_vm.get("expression_variety_score", 0),
+                        posture_score=cleaned_vm.get("posture_score", 0),
+                        face_detected_pct=cleaned_vm.get("face_detected_pct", 0),
+                        gesture_activity_score=cleaned_vm.get("gesture_activity_score")
+                    )
             except Exception as e:
-                print("Error saving visual metrics:", e)
+                import logging
+                logging.getLogger(__name__).warning(f"Error saving visual metrics: {e}")
 
         if answer_status == "NOT_ANSWERED":
             # Don't evaluate, just record as not answered
@@ -213,6 +224,7 @@ def interview_feedback_view(request, session_id, question_id):
     return render(request, "interview_feedback.html", context)
 
 @login_required
+@require_POST
 def interview_retry_feedback_view(request, session_id, question_id):
     session = get_object_or_404(InterviewSession, id=session_id, user=request.user)
     question = get_object_or_404(InterviewQuestion, id=question_id, session=session)

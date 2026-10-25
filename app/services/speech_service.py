@@ -5,6 +5,7 @@ and speech-to-text transcription utilities.
 """
 
 import os
+import uuid
 import time
 from pathlib import Path
 from django.conf import settings
@@ -20,17 +21,17 @@ class SpeechService:
         self.uploads_dir = getattr(settings, "UPLOADS_DIR", Path(settings.BASE_DIR) / "uploads")
         self.uploads_dir.mkdir(parents=True, exist_ok=True)
 
-    def save_audio_file(self, audio_file, user_id: int) -> str:
+    def save_audio_file(self, audio_file, user_id: int = None) -> str:
         """
         Saves an uploaded audio blob (.webm or .wav) to D:\\AI_Public_Speaking_Coach\\uploads\\
+        using a random UUID to prevent guessable paths.
         Returns the relative file path for database storage.
         """
         if not audio_file:
             return ""
 
-        timestamp = int(time.time())
-        ext = os.path.splitext(audio_file.name)[1] or ".webm"
-        filename = f"user_{user_id}_speech_{timestamp}{ext}"
+        ext = os.path.splitext(audio_file.name)[1].lower() or ".webm"
+        filename = f"speech_{uuid.uuid4().hex}{ext}"
         dest_path = self.uploads_dir / filename
 
         with open(dest_path, "wb+") as f:
@@ -86,17 +87,20 @@ class SpeechService:
         visual_metrics = None
         if visual_metrics_raw:
             try:
-                visual_metrics = json.loads(visual_metrics_raw)
-                VisualPresence.objects.create(
-                    speech_session=session,
-                    eye_contact_pct=visual_metrics.get("eye_contact_pct", 0),
-                    expression_variety_score=visual_metrics.get("expression_variety_score", 0),
-                    posture_score=visual_metrics.get("posture_score", 0),
-                    face_detected_pct=visual_metrics.get("face_detected_pct", 0),
-                    gesture_activity_score=visual_metrics.get("gesture_activity_score"),
-                    face_count_violations_json=visual_metrics.get("face_count_violations_json", "[]"),
-                    gaze_away_events_json=visual_metrics.get("gaze_away_events_json", "[]")
-                )
+                from app.utils import validate_and_clean_visual_metrics
+                raw_dict = json.loads(visual_metrics_raw) if isinstance(visual_metrics_raw, str) else visual_metrics_raw
+                visual_metrics = validate_and_clean_visual_metrics(raw_dict)
+                if visual_metrics:
+                    VisualPresence.objects.create(
+                        speech_session=session,
+                        eye_contact_pct=visual_metrics.get("eye_contact_pct", 0),
+                        expression_variety_score=visual_metrics.get("expression_variety_score", 0),
+                        posture_score=visual_metrics.get("posture_score", 0),
+                        face_detected_pct=visual_metrics.get("face_detected_pct", 0),
+                        gesture_activity_score=visual_metrics.get("gesture_activity_score"),
+                        face_count_violations_json=visual_metrics.get("face_count_violations_json", "[]"),
+                        gaze_away_events_json=visual_metrics.get("gaze_away_events_json", "[]")
+                    )
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).warning(f"Failed to save visual metrics: {e}")
