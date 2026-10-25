@@ -168,26 +168,26 @@ def call_gemini_with_retry(client, model, contents, config=None, max_retries=2, 
                 raise last_exception
 
 
-def _to_score(value) -> int:
+def _to_score(value, default: int = 0) -> int:
     """
     Safely converts arbitrary values (int, float, string like '85/100', None)
     into an integer clamped between 0 and 100.
     """
     if value is None:
-        return 0
+        return default
     if isinstance(value, (int, float)):
         try:
             return max(0, min(100, int(round(value))))
         except (ValueError, OverflowError):
-            return 0
+            return default
     if isinstance(value, str):
         match = re.search(r'\d+', value)
         if match:
             try:
                 return max(0, min(100, int(match.group(0))))
             except (ValueError, OverflowError):
-                return 0
-    return 0
+                return default
+    return default
 
 
 def is_verbatim_substring(quote: str, transcript: str) -> bool:
@@ -368,13 +368,17 @@ Return ONLY the cleaned transcript text."""
         duration_seconds: int = 60,
         language: str = "en-US",
         visual_metrics: dict = None,
-        audio_path: str = None
+        audio_path: str = None,
+        topic: str = None,
+        visual_context: str = ""
     ) -> dict:
         """
         Evaluates the RAW speech transcript.
         Never alters what is scored. All feedback is grounded in the transcript and audio.
         Raises GeminiEvaluationError if Gemini is not configured or fails.
         """
+        if topic:
+            topic_title = topic
         # 1. Check API Key
         if not self.api_key or not self.client:
             raise GeminiEvaluationError(code="no_key", message="GEMINI_API_KEY is not set")
@@ -417,6 +421,7 @@ Return ONLY the cleaned transcript text."""
             "status": "insufficient_speech",
             "is_insufficient_speech": True,
             "overall_score": 0,
+            "rating_label": "Not Enough Speech",
             "grammar_score": 0,
             "vocabulary_score": 0,
             "fluency_score": 0,
@@ -702,29 +707,56 @@ CRITICAL GROUNDING RULES:
                 if has_quote or len(validated_weaknesses) == 0:
                     validated_weaknesses.append(w_str)
 
-        # Validate evidence quotes per score
+        # Validate evidence quotes per score (supporting both flat and nested JSON)
+        scores_block = raw_result.get("scores", {}) if isinstance(raw_result.get("scores"), dict) else {}
+
+        def extract_score(cat_name, default=70):
+            val = raw_result.get(f"{cat_name}_score")
+            if val is None and scores_block:
+                cat_data = scores_block.get(cat_name)
+                if isinstance(cat_data, dict):
+                    val = cat_data.get("score")
+                elif isinstance(cat_data, (int, float, str)):
+                    val = cat_data
+            return _to_score(val, default=default)
+
+        def extract_evidence(cat_name):
+            ev_data = raw_result.get(f"{cat_name}_evidence")
+            if not isinstance(ev_data, dict) and scores_block:
+                cat_obj = scores_block.get(cat_name)
+                if isinstance(cat_obj, dict):
+                    ev_data = cat_obj.get("evidence")
+            if isinstance(ev_data, dict):
+                quotes = [q for q in ev_data.get("quotes", []) if is_verbatim_substring(q, transcript)]
+                reason = str(ev_data.get("reason", "")).strip()
+                return {"quotes": quotes, "reason": reason, "evidence": [{"quote": q, "reason": reason} for q in quotes]}
+            elif isinstance(ev_data, list):
+                valid_items = []
+                for item in ev_data:
+                    if isinstance(item, dict):
+                        q = item.get("quote", "")
+                        if is_verbatim_substring(q, transcript):
+                            valid_items.append({"quote": q, "reason": item.get("reason", "")})
+                quotes = [it["quote"] for it in valid_items]
+                reason = valid_items[0]["reason"] if valid_items else ""
+                return {"quotes": quotes, "reason": reason, "evidence": valid_items}
+            return {"quotes": [], "reason": "", "evidence": []}
+
         score_evidence = {}
         for category in [
             "grammar", "vocabulary", "fluency", "clarity",
             "confidence_delivery", "content_relevance"
         ]:
-            raw_ev = raw_result.get(f"{category}_evidence", {})
-            if isinstance(raw_ev, dict):
-                quotes = [q for q in raw_ev.get("quotes", []) if is_verbatim_substring(q, transcript)]
-                reason = str(raw_ev.get("reason", "")).strip()
-                score_evidence[category] = {
-                    "quotes": quotes,
-                    "reason": reason
-                }
+            score_evidence[category] = extract_evidence(category)
 
         # Coerce individual scores safely to int (0-100)
-        grammar_score = _to_score(raw_result.get("grammar_score", 70))
-        vocabulary_score = _to_score(raw_result.get("vocabulary_score", 70))
-        fluency_score = _to_score(raw_result.get("fluency_score", 70))
-        clarity_score = _to_score(raw_result.get("clarity_score", 70))
-        confidence_delivery_score = _to_score(raw_result.get("confidence_delivery_score", 70))
-        content_relevance_score = _to_score(raw_result.get("content_relevance_score", 70))
-        presence_score = _to_score(raw_result.get("presence_score", 0))
+        grammar_score = extract_score("grammar", 70)
+        vocabulary_score = extract_score("vocabulary", 70)
+        fluency_score = extract_score("fluency", 70)
+        clarity_score = extract_score("clarity", 70)
+        confidence_delivery_score = extract_score("confidence_delivery", 70)
+        content_relevance_score = extract_score("content_relevance", 70)
+        presence_score = _to_score(raw_result.get("presence_score", 0), default=0)
 
         # Adjust for speech recognition errors: never penalize grammar for STT mishearings
         if speech_rec_mistakes and grammar_score < 75:
@@ -743,12 +775,36 @@ CRITICAL GROUNDING RULES:
         ))
         overall_score = max(0, min(100, overall_score))
 
+        rating_label = "Needs Practice"
+        if overall_score >= 90:
+            rating_label = "Excellent"
+        elif overall_score >= 75:
+            rating_label = "Strong"
+        elif overall_score >= 60:
+            rating_label = "Developing"
+
         all_mistakes = validated_mistakes + speech_rec_mistakes
+
+        structured_scores = {
+            "grammar": {"score": grammar_score, "evidence": score_evidence["grammar"]["evidence"]},
+            "vocabulary": {"score": vocabulary_score, "evidence": score_evidence["vocabulary"]["evidence"]},
+            "fluency": {"score": fluency_score, "evidence": score_evidence["fluency"]["evidence"]},
+            "clarity": {"score": clarity_score, "evidence": score_evidence["clarity"]["evidence"]},
+            "confidence_delivery": {"score": confidence_delivery_score, "evidence": score_evidence["confidence_delivery"]["evidence"]},
+            "content_relevance": {"score": content_relevance_score, "evidence": score_evidence["content_relevance"]["evidence"]},
+        }
+
+        full_model_json = {
+            **raw_result,
+            "scores": structured_scores,
+            "score_evidence": score_evidence
+        }
 
         return {
             "status": "evaluated",
             "is_insufficient_speech": False,
             "overall_score": overall_score,
+            "rating_label": rating_label,
             "grammar_score": grammar_score,
             "vocabulary_score": vocabulary_score,
             "fluency_score": fluency_score,
@@ -758,13 +814,13 @@ CRITICAL GROUNDING RULES:
             "content_relevance_score": content_relevance_score,
             "presence_score": presence_score,
             "body_language_feedback": raw_result.get("body_language_feedback", ""),
-            "topic_relevance": _to_score(raw_result.get("topic_relevance_score", 80)),
-            "topic_relevance_explanation": raw_result.get("topic_relevance_explanation", ""),
+            "topic_relevance": _to_score(raw_result.get("topic_relevance_score", raw_result.get("topic_relevance", 80)), default=80),
+            "topic_relevance_explanation": raw_result.get("topic_relevance_explanation", raw_result.get("topic_relevance_reason", "")),
             "strengths": validated_strengths or raw_result.get("strengths", []),
             "weaknesses": validated_weaknesses or raw_result.get("weaknesses", []),
             "mistakes": all_mistakes,
             "speech_recognition_errors": speech_rec_mistakes,
-            "improvement_suggestions": raw_result.get("suggestions", []),
+            "improvement_suggestions": raw_result.get("suggestions", raw_result.get("improvement_suggestions", [])),
             "motivational_feedback": raw_result.get("motivational_feedback", ""),
             "practice_exercises": raw_result.get("practice_exercises", []),
             "score_evidence": score_evidence,
@@ -773,6 +829,6 @@ CRITICAL GROUNDING RULES:
             "engine": "gemini",
             "model_name": self.model_name,
             "prompt_version": self.PROMPT_VERSION,
-            "raw_model_json": raw_result,
+            "raw_model_json": full_model_json,
             "evaluated_at": timezone.now().isoformat()
         }

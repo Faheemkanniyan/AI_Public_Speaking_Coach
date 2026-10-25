@@ -46,8 +46,11 @@ from .utils import safe_int
 def landing_view(request):
     """
     Renders the premium Landing Page.
-    If already logged in, show Dashboard link prominently.
+    If already logged in, redirect to dashboard.
     """
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+
     features = [
         {
             "icon": "bi-cpu-fill",

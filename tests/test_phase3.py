@@ -212,27 +212,20 @@ class Phase3SpeakingTimeAndNLPTests(TestCase):
         self.assertEqual(report.speaking_pace_wpm, 132)
 
     def test_fallback_nlp_filler_counting_uses_word_boundaries(self):
-        evaluator = GeminiSpeechAnalyzer()
+        from app.services.gemini_service import compute_objective_speech_metrics
         # Words "also", "number", "person" contain "so" and "um" as substrings but should NOT be counted as fillers
         transcript = "I also visited a large number of places and every person was kind."
-        result = evaluator._fallback_nlp_analysis(transcript, topic="Travel")
-
-        # Weaknesses/mistakes should not flag 'so' or 'um'
-        detected_fillers_text = " ".join(result.get("weaknesses", []))
-        self.assertNotIn("'so'", detected_fillers_text)
-        self.assertNotIn("'um'", detected_fillers_text)
+        metrics = compute_objective_speech_metrics(transcript, duration_seconds=10.0)
+        self.assertEqual(metrics["filler_count"], 0)
 
         # Now test with actual filler words
         transcript_with_fillers = "Um, so I like think that, uh, basically this is good."
-        result_with_fillers = evaluator._fallback_nlp_analysis(transcript_with_fillers, topic="Opinion")
-        weaknesses_str = " ".join(result_with_fillers.get("weaknesses", []))
-        self.assertTrue("filler words" in weaknesses_str.lower() or any("'" in w for w in result_with_fillers.get("weaknesses", [])))
+        metrics_with_fillers = compute_objective_speech_metrics(transcript_with_fillers, duration_seconds=10.0)
+        self.assertGreaterEqual(metrics_with_fillers["filler_count"], 4)
 
     def test_no_hardcoded_personal_test_phrases_in_nlp_or_rules(self):
+        # Verify offline fallback NLP is deleted and no hardcoded personal phrases exist
+        from app.services.gemini_service import GeminiSpeechAnalyzer
         evaluator = GeminiSpeechAnalyzer()
-        # An innocent speech shouldn't trigger random personal phrases
-        res = evaluator._fallback_nlp_analysis("We need to share more with each other.", topic="Teamwork")
-        mistake_origs = [m["original"] for m in res.get("mistakes", [])]
-        self.assertNotIn("more to tall", mistake_origs)
-        self.assertNotIn("leadership not a good", mistake_origs)
-        self.assertNotIn("do to call", mistake_origs)
+        self.assertFalse(hasattr(evaluator, "_fallback_nlp_analysis"))
+
