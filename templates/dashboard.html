@@ -96,7 +96,7 @@
           <span class="small text-secondary fw-semibold">WEEKLY GROWTH</span>
           <i class="bi bi-graph-up-arrow text-neon-blue fs-5"></i>
         </div>
-        <h2 class="fw-bolder mb-0 text-neon-blue">+{{ stats.weekly_improvement|default:"4.2" }}%</h2>
+        <h2 class="fw-bolder mb-0 text-neon-blue fs-3">{{ stats.weekly_improvement_display }}</h2>
         <small class="text-success d-block mt-2"><i class="bi bi-arrow-up-right me-1"></i>vs. previous week</small>
       </div>
     </div>
@@ -107,7 +107,7 @@
           <span class="small text-secondary fw-semibold">MONTHLY GROWTH</span>
           <i class="bi bi-rocket-takeoff-fill text-info fs-5"></i>
         </div>
-        <h2 class="fw-bolder mb-0 text-light">+{{ stats.monthly_improvement|default:"8.5" }}%</h2>
+        <h2 class="fw-bolder mb-0 text-light fs-3">{{ stats.monthly_improvement_display }}</h2>
         <small class="text-success d-block mt-2"><i class="bi bi-arrow-up-right me-1"></i>vs. previous month</small>
       </div>
     </div>

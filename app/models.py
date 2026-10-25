@@ -153,13 +153,15 @@ class SpeechReport(models.Model):
 
     @property
     def time_consumed_seconds(self):
+        if self.session.duration_seconds and self.session.duration_seconds > 0:
+            return round(float(self.session.duration_seconds), 1)
         words = (self.session.transcript or "").split()
         if len(words) == 0:
             return 0.0
         elif len(words) <= 2:
             return 1.0
         else:
-            return round(min(float(self.session.duration_seconds), max(2.0, len(words) / 2.2)), 1)
+            return round(max(2.0, len(words) / 2.2), 1)
 
     @property
     def time_utilization_percent(self):
@@ -171,7 +173,7 @@ class SpeechReport(models.Model):
         words = (self.session.transcript or "").split()
         if len(words) == 0:
             return 0
-        return int((len(words) / max(2.0, self.time_consumed_seconds)) * 60)
+        return int((len(words) / max(1.0, self.time_consumed_seconds)) * 60)
 
     def __str__(self):
         return f"Report for Session #{self.session.id} (Score: {self.overall_score})"
@@ -212,8 +214,22 @@ class Statistic(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="statistics")
     total_sessions = models.IntegerField(default=0)
     total_duration = models.IntegerField(default=0)
-    weekly_improvement = models.FloatField(default=0.0, help_text="Percentage improvement over last week")
-    monthly_improvement = models.FloatField(default=0.0, help_text="Percentage improvement over last month")
+    weekly_improvement = models.FloatField(default=None, null=True, blank=True, help_text="Percentage improvement over last week")
+    monthly_improvement = models.FloatField(default=None, null=True, blank=True, help_text="Percentage improvement over last month")
+
+    @property
+    def weekly_improvement_display(self):
+        if self.weekly_improvement is None:
+            return "Not enough data"
+        sign = "+" if self.weekly_improvement > 0 else ""
+        return f"{sign}{self.weekly_improvement}%"
+
+    @property
+    def monthly_improvement_display(self):
+        if self.monthly_improvement is None:
+            return "Not enough data"
+        sign = "+" if self.monthly_improvement > 0 else ""
+        return f"{sign}{self.monthly_improvement}%"
     avg_grammar = models.FloatField(default=0.0)
     avg_vocabulary = models.FloatField(default=0.0)
     avg_confidence = models.FloatField(default=0.0)

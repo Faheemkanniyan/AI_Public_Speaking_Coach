@@ -254,17 +254,57 @@ class SpeechService:
             stats.avg_fluency = round(sum(r.fluency_score for r in user_reports) / count, 1)
             stats.avg_communication = round(sum(r.communication_score for r in user_reports) / count, 1)
 
-            # Weekly/Monthly improvement calculation
-            stats.weekly_improvement = max(2.5, round((profile.average_score - 70.0) * 0.4, 1))
-            stats.monthly_improvement = max(5.8, round((profile.average_score - 68.0) * 0.7, 1))
+            # Real weekly & monthly improvement calculation
+            # Weekly: average of last 7 days vs previous 7 days (days 8-14)
+            # Monthly: average of last 30 days vs previous 30 days (days 31-60)
+            now = timezone.now()
+            reports_last_7 = SpeechReport.objects.filter(
+                session__user=user,
+                created_at__gte=now - datetime.timedelta(days=7)
+            )
+            reports_prev_7 = SpeechReport.objects.filter(
+                session__user=user,
+                created_at__gte=now - datetime.timedelta(days=14),
+                created_at__lt=now - datetime.timedelta(days=7)
+            )
+            if reports_last_7.exists() and reports_prev_7.exists():
+                avg_last_7 = sum(r.overall_score for r in reports_last_7) / reports_last_7.count()
+                avg_prev_7 = sum(r.overall_score for r in reports_prev_7) / reports_prev_7.count()
+                stats.weekly_improvement = round(avg_last_7 - avg_prev_7, 1)
+            else:
+                stats.weekly_improvement = None
 
-        # Check streak
+            reports_last_30 = SpeechReport.objects.filter(
+                session__user=user,
+                created_at__gte=now - datetime.timedelta(days=30)
+            )
+            reports_prev_30 = SpeechReport.objects.filter(
+                session__user=user,
+                created_at__gte=now - datetime.timedelta(days=60),
+                created_at__lt=now - datetime.timedelta(days=30)
+            )
+            if reports_last_30.exists() and reports_prev_30.exists():
+                avg_last_30 = sum(r.overall_score for r in reports_last_30) / reports_last_30.count()
+                avg_prev_30 = sum(r.overall_score for r in reports_prev_30) / reports_prev_30.count()
+                stats.monthly_improvement = round(avg_last_30 - avg_prev_30, 1)
+            else:
+                stats.monthly_improvement = None
+
+        # Check streak: handle same-day sessions correctly and use user local date consistently
+        today = timezone.localdate()
         last_session = user.speech_sessions.exclude(id=session.id).order_by("-created_at").first()
         if last_session:
-            diff = (timezone.now().date() - last_session.created_at.date()).days
-            if diff == 1:
+            last_date = timezone.localtime(last_session.created_at).date()
+            diff = (today - last_date).days
+            if diff == 0:
+                # Same day session: preserve current streak (ensure at least 1)
+                if profile.practice_streak < 1:
+                    profile.practice_streak = 1
+            elif diff == 1:
+                # Consecutive day: increment streak
                 profile.practice_streak += 1
-            elif diff > 1:
+            else:
+                # Broken streak: reset to 1
                 profile.practice_streak = 1
         else:
             profile.practice_streak = 1
@@ -275,7 +315,10 @@ class SpeechService:
     def _update_error_history(self, user, mistakes):
         """
         Extracts mistakes from the speech report and tracks them for recurring errors.
+        Accepts both 'reason' and 'explanation' keys, avoids empty parentheses ' ()',
+        and matches recurring errors using normalized text comparison.
         """
+        import re
         from app.models import ErrorHistory
         from django.utils import timezone
 
@@ -283,25 +326,43 @@ class SpeechService:
             return
 
         for mistake in mistakes:
+            if not isinstance(mistake, dict):
+                continue
             original = mistake.get("original", "").strip()
             correction = mistake.get("correction", "").strip()
-            explanation = mistake.get("explanation", "").strip()
+            explanation = (mistake.get("reason") or mistake.get("explanation") or "").strip()
             error_type = mistake.get("type", "Grammar")
 
             if not original:
                 continue
-                
-            # Very basic check for recurring errors: exact matching or very similar
-            # In a full NLP solution, we'd use semantic similarity
-            existing = ErrorHistory.objects.filter(user=user, error_type=error_type, error_text__icontains=original[:20]).first()
-            if existing:
-                existing.frequency += 1
-                existing.last_detected = timezone.now()
-                existing.save()
+
+            # Format correction text without appending empty parentheses
+            if explanation:
+                formatted_correction = f"{correction} ({explanation})".strip()
+            else:
+                formatted_correction = correction
+
+            # Normalize text for accurate matching (ignore punctuation and extra whitespace)
+            norm_original = re.sub(r'[^\w\s]', '', original.lower())
+            norm_original = re.sub(r'\s+', ' ', norm_original).strip()
+
+            existing_candidates = ErrorHistory.objects.filter(user=user, error_type=error_type)
+            matched_err = None
+            for err in existing_candidates:
+                candidate_norm = re.sub(r'[^\w\s]', '', err.error_text.lower())
+                candidate_norm = re.sub(r'\s+', ' ', candidate_norm).strip()
+                if candidate_norm == norm_original or err.error_text.lower() == original.lower():
+                    matched_err = err
+                    break
+
+            if matched_err:
+                matched_err.frequency += 1
+                matched_err.last_detected = timezone.now()
+                matched_err.save(update_fields=["frequency", "last_detected"])
             else:
                 ErrorHistory.objects.create(
                     user=user,
                     error_type=error_type,
                     error_text=original,
-                    correction=correction + " (" + explanation + ")"
+                    correction=formatted_correction
                 )

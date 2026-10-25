@@ -135,15 +135,6 @@ def logout_view(request):
     return redirect("landing")
 
 
-def forgot_password_view(request):
-    """
-    Forgot password recovery page.
-    """
-    if request.method == "POST":
-        email = request.POST.get("email", "")
-        messages.success(request, f"If an account exists for {email}, a password reset link has been sent!")
-        return redirect("login")
-    return render(request, "auth/forgot_password.html")
 
 
 @login_required

@@ -250,7 +250,9 @@ CRITICAL RULES:
         filler_count = 0
         detected_fillers = []
         for filler in filler_list:
-            count = transcript.lower().count(filler)
+            pattern = r'\b' + re.escape(filler) + r'\b'
+            matches = re.findall(pattern, transcript, re.IGNORECASE)
+            count = len(matches)
             if count > 0:
                 filler_count += count
                 detected_fillers.append(f"'{filler}' ({count}x)")
@@ -267,11 +269,10 @@ CRITICAL RULES:
         structure_list = ["because", "therefore", "however", "although", "furthermore", "moreover", "first", "second", "example", "experience", "believe", "demonstrate", "result", "goal", "challenge", "learn", "improve", "balance", "work", "success", "achieve", "strategy", "impact", "important", "conclusion", "summary"]
         structure_count = sum(1 for sw in structure_list if f" {sw} " in f" {transcript.lower()} ")
 
-        # Check for spoken grammar fragments & awkward syntax
+        # Check for spoken grammar fragments & awkward syntax (generic grammar rules only)
         grammar_error_patterns = [
-            (r'\b(should|could|would|must|can|will|do|did)\s+(good|bad|well|tall|big|happy|sad)\b', "Missing verb after modal auxiliary; ensure complete grammatical structure."),
-            (r'\b(more to tall|do to call|need to you|to do call me|not good for every time)\b', "Fragmented or awkward phrasing; restructure for professional clarity."),
-            (r'\b(do you have any other topic|any other topic to do)\b', "Informal conversational tangent; maintain structured focus on the assigned thesis.")
+            (r'\b(should|could|would|must|can|will)\s+(good|bad|well|big|happy|sad)\b', "Missing verb after modal auxiliary; ensure complete grammatical structure."),
+            (r'\b(\w+)\s+(not a good|not a well)\b', "Missing linking verb before 'not a good'; use 'is not effective' or 'is not good'."),
         ]
         detected_grammar_issues = []
         for pat, reason_txt in grammar_error_patterns:
@@ -392,14 +393,11 @@ CRITICAL RULES:
             })
 
         for m_str, m_reason in detected_grammar_issues:
-            if "should actually good" in m_str:
-                m_corr = "should actually be effective"
-            elif "more to tall" in m_str:
-                m_corr = "more to share"
-            elif "do to call" in m_str or "to do call me" in m_str:
-                m_corr = "to discuss with me"
-            elif "do you have any other topic" in m_str:
-                m_corr = "Could we explore another topic?"
+            parts = m_str.split()
+            if len(parts) >= 2 and parts[0].lower() in ["should", "could", "would", "must", "can", "will"]:
+                m_corr = f"{parts[0]} be {' '.join(parts[1:])}"
+            elif "not a good" in m_str.lower() or "not a well" in m_str.lower():
+                m_corr = f"{parts[0]} is not good" if parts else "is not good"
             else:
                 m_corr = "Restructure for complete grammatical syntax"
             mistakes.append({
@@ -638,23 +636,16 @@ CRITICAL RULES:
                 corr = corr_map.get(orig.lower(), orig.split()[0])
                 mistakes.append({"original": orig, "correction": corr, "reason": reason})
 
-        # 5. Spoken Awkward Syntax, Missing Verbs & Comma Splices
+        # 5. Spoken Awkward Syntax, Missing Verbs (generic grammar rules only)
         syntax_patterns = [
-            (r'\b(leadership not a good|personal is better|not a good,\s*personal)\b', "Missing linking verb and comma splice; restructure as 'leadership alone is not enough; personal growth is essential.'"),
             (r'\b(\w+)\s+(not a good|not a well)\b', "Missing linking verb before 'not a good'; use 'is not effective' or 'is not good'."),
-            (r'\b(more to tall|do to call|need to you|to do call me|not good for every time)\b', "Fragmented or awkward spoken syntax; restructure for professional clarity."),
-            (r'\b(do you have any other topic|any other topic to do)\b', "Informal conversational tangent; maintain structured focus on the assigned topic."),
         ]
         for pat, reason in syntax_patterns:
             matches = re.finditer(pat, text, re.IGNORECASE)
             for m in matches:
                 orig = m.group(0)
-                if "leadership" in orig.lower() or "personal" in orig.lower() or "not a good" in orig.lower():
-                    corr = "leadership alone is not enough; personal growth is essential"
-                elif "tall" in orig.lower(): corr = "more to share"
-                elif "call" in orig.lower(): corr = "to discuss with me"
-                elif "topic" in orig.lower(): corr = "Could we explore another topic?"
-                else: corr = "Restructure for complete grammatical syntax"
+                words_match = orig.split()
+                corr = f"{words_match[0]} is not good" if words_match else "is not good"
                 mistakes.append({"original": orig, "correction": corr, "reason": reason})
 
         return mistakes
@@ -667,18 +658,22 @@ CRITICAL RULES:
         """
         words = re.findall(r'\b\w+\b', (transcript or "").lower())
         total_words = len(words)
-        duration_seconds = max(1, int(duration_seconds or 60))
 
-        # 1. Estimate Time Consumed (or calculate speaking pace)
-        if total_words == 0:
-            estimated_seconds = 0.0
-        elif total_words <= 2:
-            estimated_seconds = 1.0
+        # 1. Speaking Time Consumed & Speaking Pace (use real duration_seconds from browser if provided)
+        has_real_duration = bool(duration_seconds is not None and int(duration_seconds) > 0)
+        if has_real_duration:
+            time_consumed_seconds = round(float(duration_seconds), 1)
         else:
-            estimated_seconds = round(min(float(duration_seconds), max(2.0, total_words / 2.2)), 1)
-        
-        time_utilization_pct = min(100, int((estimated_seconds / duration_seconds) * 100))
-        wpm_pace = int((total_words / max(2.0, estimated_seconds)) * 60) if total_words > 0 else 0
+            if total_words == 0:
+                time_consumed_seconds = 0.0
+            elif total_words <= 2:
+                time_consumed_seconds = 1.0
+            else:
+                time_consumed_seconds = round(max(2.0, total_words / 2.2), 1)
+
+        dur_target = max(1, int(duration_seconds or 60))
+        time_utilization_pct = min(100, int((time_consumed_seconds / dur_target) * 100))
+        wpm_pace = int((total_words / max(1.0, time_consumed_seconds)) * 60) if total_words > 0 else 0
 
         ideal_min_wpm, ideal_max_wpm = 120, 150
 

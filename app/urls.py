@@ -2,7 +2,8 @@
 URL routing for SpeakPro AI web application.
 """
 
-from django.urls import path
+from django.urls import path, reverse_lazy
+from django.contrib.auth import views as auth_views
 from . import views, api_views, interview_views
 
 urlpatterns = [
@@ -29,7 +30,28 @@ urlpatterns = [
     path('signup/', views.signup_view, name='signup'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
-    path('forgot-password/', views.forgot_password_view, name='forgot_password'),
+    path('forgot-password/', auth_views.PasswordResetView.as_view(
+        template_name='auth/forgot_password.html',
+        email_template_name='auth/password_reset_email.html',
+        subject_template_name='auth/password_reset_subject.txt',
+        success_url=reverse_lazy('password_reset_done'),
+    ), name='forgot_password'),
+    path('password-reset/', auth_views.PasswordResetView.as_view(
+        template_name='auth/forgot_password.html',
+        email_template_name='auth/password_reset_email.html',
+        subject_template_name='auth/password_reset_subject.txt',
+        success_url=reverse_lazy('password_reset_done'),
+    ), name='password_reset'),
+    path('forgot-password/done/', auth_views.PasswordResetDoneView.as_view(
+        template_name='auth/password_reset_done.html',
+    ), name='password_reset_done'),
+    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
+        template_name='auth/password_reset_confirm.html',
+        success_url=reverse_lazy('password_reset_complete'),
+    ), name='password_reset_confirm'),
+    path('reset/done/', auth_views.PasswordResetCompleteView.as_view(
+        template_name='auth/password_reset_complete.html',
+    ), name='password_reset_complete'),
 
     # Interview Preparation
     path('interview/', interview_views.interview_setup_view, name='interview_setup'),

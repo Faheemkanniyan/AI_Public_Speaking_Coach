@@ -19,15 +19,58 @@ class AnalyticsService:
         - line_chart: Overall score over time (recent sessions)
         - bar_chart: Score breakdown across categories
         - pie_chart: Speech topics distribution
+        - has_data: Boolean indicating if user has any practice data
         """
         reports = SpeechReport.objects.filter(session__user=user).order_by("created_at")
+        has_data = reports.exists()
 
-        # 1. Radar Chart (Average skill breakdown)
-        avg_grammar = round(reports.aggregate(avg=Avg("grammar_score"))["avg"] or 75, 1)
-        avg_vocab = round(reports.aggregate(avg=Avg("vocabulary_score"))["avg"] or 76, 1)
-        avg_conf = round(reports.aggregate(avg=Avg("confidence_score"))["avg"] or 74, 1)
-        avg_fluency = round(reports.aggregate(avg=Avg("fluency_score"))["avg"] or 72, 1)
-        avg_comm = round(reports.aggregate(avg=Avg("communication_score"))["avg"] or 75, 1)
+        if not has_data:
+            return {
+                "has_data": False,
+                "radar_chart": {
+                    "labels": ["Grammar", "Vocabulary", "Confidence", "Fluency", "Communication"],
+                    "datasets": [
+                        {
+                            "label": "Your Skill Proficiency",
+                            "data": [0, 0, 0, 0, 0],
+                            "backgroundColor": "rgba(0, 255, 136, 0.2)",
+                            "borderColor": "#00ff88",
+                        }
+                    ],
+                },
+                "line_chart": {
+                    "labels": [],
+                    "datasets": [
+                        {
+                            "label": "Overall Speaking Score",
+                            "data": [],
+                            "borderColor": "#00d2ff",
+                            "backgroundColor": "rgba(0, 210, 255, 0.15)",
+                        }
+                    ],
+                },
+                "bar_chart": {
+                    "labels": ["Grammar", "Vocabulary", "Confidence", "Fluency", "Communication", "Overall"],
+                    "datasets": [
+                        {
+                            "label": "Average Category Scores",
+                            "data": [0, 0, 0, 0, 0, 0],
+                        }
+                    ],
+                },
+                "pie_chart": {
+                    "labels": [],
+                    "datasets": [{"data": []}],
+                },
+            }
+
+        # 1. Radar Chart (Real average skill breakdown)
+        avg_grammar = round(reports.aggregate(avg=Avg("grammar_score"))["avg"] or 0, 1)
+        avg_vocab = round(reports.aggregate(avg=Avg("vocabulary_score"))["avg"] or 0, 1)
+        avg_conf = round(reports.aggregate(avg=Avg("confidence_score"))["avg"] or 0, 1)
+        avg_fluency = round(reports.aggregate(avg=Avg("fluency_score"))["avg"] or 0, 1)
+        avg_comm = round(reports.aggregate(avg=Avg("communication_score"))["avg"] or 0, 1)
+        avg_overall = round(reports.aggregate(avg=Avg("overall_score"))["avg"] or 0, 1)
 
         radar_chart = {
             "labels": ["Grammar", "Vocabulary", "Confidence", "Fluency", "Communication"],
@@ -45,13 +88,9 @@ class AnalyticsService:
         }
 
         # 2. Line Chart (Score progression over last 10 sessions)
-        recent_reports = reports.order_by("-created_at")[:10]
-        recent_reports = list(reversed(recent_reports))
+        recent_reports = list(reversed(reports.order_by("-created_at")[:10]))
         line_labels = [f"Session {r.session.id}" for r in recent_reports]
         line_scores = [r.overall_score for r in recent_reports]
-        if not line_labels:
-            line_labels = ["Demo 1", "Demo 2", "Demo 3"]
-            line_scores = [72, 78, 85]
 
         line_chart = {
             "labels": line_labels,
@@ -73,7 +112,7 @@ class AnalyticsService:
         eye_contact_data = []
         posture_data = []
         has_visuals = False
-        
+
         for r in recent_reports:
             vp = getattr(r.session, 'visual_presence', None)
             if vp:
@@ -83,7 +122,7 @@ class AnalyticsService:
             else:
                 eye_contact_data.append(None)
                 posture_data.append(None)
-                
+
         if has_visuals:
             line_chart["datasets"].append({
                 "label": "Eye Contact %",
@@ -118,7 +157,7 @@ class AnalyticsService:
                         avg_conf,
                         avg_fluency,
                         avg_comm,
-                        round(reports.aggregate(avg=Avg("overall_score"))["avg"] or 76, 1),
+                        avg_overall,
                     ],
                     "backgroundColor": [
                         "rgba(0, 255, 136, 0.8)",
@@ -144,10 +183,6 @@ class AnalyticsService:
             pie_labels.append(cat_map.get(cat_key, "General Practice"))
             pie_data.append(row["count"])
 
-        if not pie_labels:
-            pie_labels = ["General & Personal", "Leadership & Career", "AI & Technology"]
-            pie_data = [4, 3, 3]
-
         pie_chart = {
             "labels": pie_labels,
             "datasets": [
@@ -166,6 +201,7 @@ class AnalyticsService:
         }
 
         return {
+            "has_data": True,
             "radar_chart": radar_chart,
             "line_chart": line_chart,
             "bar_chart": bar_chart,

@@ -121,12 +121,8 @@ class AssemblyAIService:
         language = "en-US"
         filler_list = FILLER_WORDS_LIST
         stt_fixes = [
-            (r'\bthe amputation is the most one thing in my our brain\b', 'ambition is a primary focus in our mind', 'Improved articulation and clarity'),
             (r'\bmy our\b', 'our', 'Removed duplicate pronoun'),
             (r'\bsomething like that\b', 'and related factors', 'Replaced informal qualifier with executive phrasing'),
-            (r'\bmore to tall\b', 'more to share', 'Corrected word choice error'),
-            (r'\bdo to call me\b', 'to discuss with me', 'Corrected spoken syntax fragment'),
-            (r'\bshould actually good\b', 'should actually be effective', 'Added missing auxiliary verb')
         ]
         fw_to_remove = ["actually", "literally", "basically", "um", "uh", "like"]
 

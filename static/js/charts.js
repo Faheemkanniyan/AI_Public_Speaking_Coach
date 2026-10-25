@@ -9,6 +9,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
   try {
     const data = JSON.parse(chartDataEl.textContent);
+    if (!data || data.has_data === false) {
+      document.querySelectorAll("#radarChartCanvas, #lineChartCanvas, #barChartCanvas, #pieChartCanvas").forEach(canvas => {
+        const parent = canvas.parentElement;
+        if (parent) {
+          parent.innerHTML = `
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-center text-secondary py-5">
+              <i class="bi bi-bar-chart-line display-6 mb-2 text-secondary opacity-50"></i>
+              <p class="mb-0 small">No speech practice data yet.<br>Complete a practice session to see insights.</p>
+            </div>`;
+        }
+      });
+      return;
+    }
     initRadarChart(data.radar_chart);
     initLineChart(data.line_chart);
     initBarChart(data.bar_chart);
