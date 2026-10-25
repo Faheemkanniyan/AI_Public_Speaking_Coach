@@ -435,6 +435,34 @@ class InterviewFeedback(models.Model):
     correct_points_json = models.TextField(default="[]")
     incorrect_points_json = models.TextField(default="[]")
 
+    @property
+    def missing_points(self):
+        try:
+            return json.loads(self.missing_points_json)
+        except Exception:
+            return []
+
+    @property
+    def correct_points(self):
+        try:
+            return json.loads(self.correct_points_json)
+        except Exception:
+            return []
+
+    @property
+    def incorrect_points(self):
+        try:
+            return json.loads(self.incorrect_points_json)
+        except Exception:
+            return []
+
+    @property
+    def suggestions(self):
+        try:
+            return json.loads(self.suggestions_json)
+        except Exception:
+            return []
+
     def __str__(self):
         return f"Feedback for Answer {self.answer.id}"
 

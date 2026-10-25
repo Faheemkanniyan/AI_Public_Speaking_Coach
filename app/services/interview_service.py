@@ -1,50 +1,132 @@
-import json
-from django.conf import settings
-from app.models import InterviewSession, InterviewQuestion, InterviewAnswer, InterviewFeedback
+"""
+AI Interview Service for SpeakPro AI.
+Provides grounded interview question generation and strictly grounded answer evaluation using Google Gemini.
+Raises GeminiEvaluationError on failures with mapped error codes — no canned questions or fake fallback scoring.
+"""
+
 import os
+import json
 import re
+import time
+import logging
+from typing import List, Optional
+from pydantic import BaseModel, Field
+from django.conf import settings
+from django.utils import timezone
+
+from app.models import InterviewSession, InterviewQuestion, InterviewAnswer, InterviewFeedback
+from app.services.gemini_service import (
+    GeminiEvaluationError,
+    map_gemini_exception,
+    call_gemini_with_retry,
+    is_verbatim_substring,
+    _to_score
+)
+
+logger = logging.getLogger(__name__)
 
 try:
     from google import genai
+    from google.genai import types
     GENAI_AVAILABLE = True
 except ImportError:
+    genai = None
+    types = None
     GENAI_AVAILABLE = False
 
-class InterviewService:
-    def __init__(self):
-        import logging
-        import os
-        from django.conf import settings
-        self.logger = logging.getLogger(__name__)
-        if not self.logger.handlers:
-            log_path = os.path.join(settings.BASE_DIR, 'logs', 'ai_evaluation.log')
-            fh = logging.FileHandler(log_path)
-            fh.setLevel(logging.INFO)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            fh.setFormatter(formatter)
-            self.logger.addHandler(fh)
 
+class GeneratedQuestionItem(BaseModel):
+    question: str = Field(description="The actual interview question string")
+    interview_type: str = Field(description="Technical, HR, Behavioral, etc.")
+    domain: str = Field(description="Domain such as Software, Product, Data")
+    topic: str = Field(description="Technology or topic evaluated")
+    difficulty: str = Field(description="Beginner, Intermediate, or Advanced")
+    question_type: str = Field(description="Conceptual, Practical, Behavioral, Scenario")
+    expected_points: List[str] = Field(description="List of key points expected in a correct answer")
+    ideal_answer: str = Field(description="Concise model answer 3-6 sentences")
+    evaluation_criteria: List[str] = Field(description="Assessment criteria")
+
+
+class InterviewQuestionsListSchema(BaseModel):
+    questions: List[GeneratedQuestionItem]
+
+
+class InterviewEvidence(BaseModel):
+    quotes: List[str] = Field(default_factory=list, description="Verbatim quotes copied from candidate answer as evidence")
+    reason: str = Field(default="", description="One-line justification grounded in the evidence quotes")
+
+
+class IncorrectStatementItem(BaseModel):
+    quote: str = Field(description="Exact verbatim quote from candidate answer that is incorrect or inaccurate")
+    why_wrong: str = Field(description="Clear explanation of why this claim is incorrect")
+
+
+class GroundedInterviewAnswerSchema(BaseModel):
+    relevance_score: int = Field(default=75, ge=0, le=100)
+    relevance_evidence: InterviewEvidence = Field(default_factory=InterviewEvidence)
+
+    technical_correctness_score: int = Field(default=75, ge=0, le=100)
+    technical_correctness_evidence: InterviewEvidence = Field(default_factory=InterviewEvidence)
+
+    completeness_score: int = Field(default=75, ge=0, le=100)
+    completeness_evidence: InterviewEvidence = Field(default_factory=InterviewEvidence)
+
+    structure_score: int = Field(default=75, ge=0, le=100)
+    structure_evidence: InterviewEvidence = Field(default_factory=InterviewEvidence)
+
+    communication_score: int = Field(default=75, ge=0, le=100)
+    communication_evidence: InterviewEvidence = Field(default_factory=InterviewEvidence)
+
+    classification: str = Field(default="Partially Correct", description="'Correct', 'Partially Correct', 'Incorrect', or 'Not Answered'")
+    feedback: str = Field(default="", description="Honest, grounded feedback citing verbatim quotes")
+    model_answer: str = Field(default="", description="Ideal answer outline (concise model answer)")
+    missing_points: List[str] = Field(default_factory=list, description="Points the candidate missed")
+    incorrect_statements: List[IncorrectStatementItem] = Field(default_factory=list, description="Candidate statements that were incorrect")
+    correct_points: List[str] = Field(default_factory=list, description="Points the candidate articulated correctly")
+    suggestions: List[str] = Field(default_factory=list, description="Specific suggestions tied to weaknesses")
+
+
+class InterviewService:
+    """
+    Evaluates interview responses with strict grounding against the candidate's actual answer.
+    """
+
+    def __init__(self):
         self.api_key = getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
-        self.logger.info("=========================================")
-        self.logger.info(f"InterviewService initialized. API Key present: {bool(self.api_key)}")
-        self.logger.info(f"GENAI_AVAILABLE: {GENAI_AVAILABLE}")
-        
-        if GENAI_AVAILABLE and self.api_key:
+        self.model_name = getattr(settings, "GEMINI_MODEL", "gemini-3-flash-preview")
+        self.client = None
+
+        if self.api_key and GENAI_AVAILABLE:
             try:
                 self.client = genai.Client(api_key=self.api_key)
-                self.model_name = getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash")
-                self.logger.info("Client successfully initialized!")
             except Exception as e:
-                self.logger.error("Exception initializing client", exc_info=True)
+                logger.warning(f"Failed to initialize Gemini client for InterviewService: {e}")
                 self.client = None
-                self.model_name = None
-        else:
-            self.client = None
-            self.model_name = None
-            if not GENAI_AVAILABLE:
-                self.logger.warning("GENAI_AVAILABLE is False. google-genai package is not installed.")
+
+    def analyze_filler_words(self, transcript: str) -> int:
+        """
+        Calculates filler words using word-boundary regex.
+        """
+        if not transcript:
+            return 0
+        filler_patterns = [
+            r"\bum\b", r"\buh\b", r"\bah\b", r"\ber\b", r"\blike\b",
+            r"\byou know\b", r"\bi mean\b", r"\bactually\b", r"\bbasically\b"
+        ]
+        count = 0
+        lower = transcript.lower()
+        for p in filler_patterns:
+            count += len(re.findall(p, lower))
+        return count
 
     def create_session(self, user, interview_type, domain, technology, difficulty, num_questions, language):
+        """
+        Creates an InterviewSession and generates AI questions via Gemini.
+        Raises GeminiEvaluationError if Gemini fails (no fake canned questions).
+        """
+        if not self.api_key or not self.client:
+            raise GeminiEvaluationError(code="no_key", message="GEMINI_API_KEY is not set")
+
         session = InterviewSession.objects.create(
             user=user,
             interview_type=interview_type,
@@ -52,11 +134,20 @@ class InterviewService:
             technology=technology,
             difficulty=difficulty,
             total_questions=num_questions,
-            interview_language=language
+            interview_language=language,
+            status="IN_PROGRESS"
         )
 
-        questions = self._generate_questions(interview_type, domain, technology, difficulty, num_questions, language)
-        
+        try:
+            questions = self._generate_questions(interview_type, domain, technology, difficulty, num_questions, language)
+        except Exception as e:
+            mapped_e = map_gemini_exception(e, model_name=self.model_name)
+            session.status = "FAILED"
+            session.error_code = mapped_e.code
+            session.error_message = mapped_e.message
+            session.save()
+            raise mapped_e
+
         for i, q_data in enumerate(questions):
             InterviewQuestion.objects.create(
                 session=session,
@@ -67,398 +158,304 @@ class InterviewService:
                 ideal_answer=q_data.get("ideal_answer", ""),
                 evaluation_criteria_json=json.dumps(q_data.get("evaluation_criteria", []))
             )
+
         return session
 
     def _generate_questions(self, interview_type, domain, technology, difficulty, num_questions, language):
-        prompt = f"""
-        You are an expert, senior-level interviewer in the "{domain}" domain.
-        Your task is to generate exactly {num_questions} highly specific, realistic {difficulty} level questions for a "{interview_type}" interview.
-        The questions MUST be deeply tailored to the topic/technology: "{technology}".
-
-        Guidelines:
-        - Technical Interview: Focus heavily on problem-solving, architectural choices, debugging, deep conceptual understanding, and practical scenarios.
-        - HR Interview: Focus on introduction, strengths, weaknesses, career goals, teamwork, communication. DO NOT ask technical questions.
-        - Behavioral Interview: Use situation-based (STAR) questions. (e.g. "Tell me about a time...")
-        - Project Interview: Focus on objective, architecture, challenges, contributions, testing.
-        - Coding Interview: Focus on algorithms, data structures, complexity.
-        - Mixed: Provide a balanced mix.
-
-        Every question must be unique. No generic placeholders. No introductory fluff.
-        Ensure it matches {interview_type} and {technology} specifically.
-
-        Return the result strictly as a JSON array of objects. Format:
-        [
-            {{
-                "question": "The actual interview question string",
-                "interview_type": "{interview_type}",
-                "domain": "{domain}",
-                "topic": "{technology}",
-                "difficulty": "{difficulty}",
-                "question_type": "Conceptual/Practical/Behavioral/etc",
-                "expected_points": ["Point 1", "Point 2", "Point 3"],
-                "ideal_answer": "A perfect, concise model answer.",
-                "evaluation_criteria": ["Criteria 1", "Criteria 2", "Criteria 3"]
-            }}
-        ]
         """
-        
-        # Categorized fallback bank
-        fallback_bank = {
-            "HTML": {
-                "Beginner": [
-                    "What is HTML?",
-                    "What is an HTML element?",
-                    "What is the purpose of the <head> element?",
-                    "What is the purpose of the <body> element?",
-                    "How do you create a hyperlink in HTML?"
-                ],
-                "Intermediate": [
-                    "Explain semantic HTML.",
-                    "Explain HTML forms and validation.",
-                    "Explain the difference between GET and POST.",
-                    "Explain data-* attributes.",
-                    "Explain script loading with async and defer.",
-                    "Explain accessibility-related HTML practices."
-                ],
-                "Advanced": [
-                    "Explain complex form accessibility considerations.",
-                    "Explain how HTML parsing affects script execution.",
-                    "Explain advanced semantic structure for large web applications.",
-                    "Explain accessibility implications of dynamically generated HTML.",
-                    "How do you implement Subresource Integrity (SRI)?"
-                ]
-            }
+        Calls Gemini to generate interview questions tailored to domain and technology.
+        """
+        prompt = f"""You are a senior hiring manager and principal interviewer in the "{domain}" domain.
+Generate exactly {num_questions} realistic, rigorous {difficulty} level interview questions for a "{interview_type}" interview.
+Topic/Technology: "{technology}". Language: {language}.
+
+Requirements:
+- Questions must be deeply tailored to "{technology}".
+- If Technical/Coding: focus on core concepts, trade-offs, architecture, and problem-solving.
+- If HR/Behavioral: focus on teamwork, conflict resolution, leadership, and STAR scenarios.
+- Each question must be unique and professional.
+- For each question provide:
+  - expected_points: 3-5 core points a great answer must cover
+  - ideal_answer: concise model answer (3-6 sentences)
+  - evaluation_criteria: 3 key evaluation criteria
+"""
+
+        thinking = types.ThinkingConfig(thinking_budget=0) if hasattr(types, "ThinkingConfig") else None
+        config_kwargs = {
+            "response_mime_type": "application/json",
+            "response_schema": InterviewQuestionsListSchema,
+            "temperature": 0.0,
         }
+        if thinking:
+            config_kwargs["thinking_config"] = thinking
+        config = types.GenerateContentConfig(**config_kwargs)
 
-        # Fallback question generation logic
-        fallback_questions = []
-        topic_bank = fallback_bank.get(technology, {}).get(difficulty, [
-            f"Explain a core concept in {technology}.",
-            f"What are the best practices in {technology}?",
-            f"How do you handle errors in {technology}?",
-            f"Explain a real-world use case for {technology}.",
-            f"What are the common pitfalls in {technology}?"
-        ])
-        
-        for i in range(num_questions):
-            q_text = topic_bank[i % len(topic_bank)]
-            if i >= len(topic_bank):
-                q_text = f"{q_text} (Context {i+1})"
-            
-            fallback_questions.append({
-                "question": q_text,
-                "interview_type": interview_type,
-                "domain": domain,
-                "topic": technology,
-                "difficulty": difficulty,
-                "question_type": "Fallback",
-                "expected_points": ["Relevant definition", "Practical example", "Best practices"],
-                "ideal_answer": "A comprehensive and accurate explanation based on the topic.",
-                "evaluation_criteria": ["Clarity", "Accuracy", "Relevance"]
-            })
+        try:
+            response = call_gemini_with_retry(
+                self.client,
+                self.model_name,
+                prompt,
+                config=config,
+                max_retries=2
+            )
+            text = (response.text or "").strip()
+            data = json.loads(text)
+            raw_qs = data.get("questions", [])
+            if not raw_qs or len(raw_qs) == 0:
+                raise ValueError("Gemini returned an empty list of questions")
 
-        if not self.client:
-            return fallback_questions
+            questions = []
+            for item in raw_qs[:num_questions]:
+                questions.append({
+                    "question": item.get("question"),
+                    "interview_type": item.get("interview_type", interview_type),
+                    "domain": item.get("domain", domain),
+                    "topic": item.get("topic", technology),
+                    "difficulty": item.get("difficulty", difficulty),
+                    "question_type": item.get("question_type", "Conceptual"),
+                    "expected_points": item.get("expected_points", []),
+                    "ideal_answer": item.get("ideal_answer", ""),
+                    "evaluation_criteria": item.get("evaluation_criteria", [])
+                })
+            return questions
+        except Exception as e:
+            logger.error(f"Failed to generate interview questions with Gemini: {e}")
+            raise map_gemini_exception(e, model_name=self.model_name)
 
-        for attempt in range(3):
+    def evaluate_answer(self, answer_obj: InterviewAnswer, language: str) -> dict:
+        """
+        Evaluates a candidate's voice transcript against question criteria.
+        Returns a validated dictionary of scores, evidence quotes, and suggestions.
+        """
+        transcript = (answer_obj.transcript or "").strip()
+
+        # Hard Rule: Unanswered or empty answer
+        if not transcript or answer_obj.answer_status == "NOT_ANSWERED":
             try:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=prompt
-                )
-                text = response.text.strip()
-                
-                # Robust JSON array extraction
-                json_start = text.find('[')
-                json_end = text.rfind(']')
-                
-                if json_start != -1 and json_end != -1 and json_end > json_start:
-                    text = text[json_start:json_end+1]
-                
-                questions = json.loads(text)
-                if isinstance(questions, list) and len(questions) > 0:
-                    valid_questions = []
-                    for q in questions:
-                        if all(k in q for k in ["question", "expected_points", "ideal_answer", "evaluation_criteria"]):
-                            if q.get("question") and not q.get("question").startswith("Sample"):
-                                valid_questions.append(q)
-                    
-                    if len(valid_questions) >= num_questions:
-                        return valid_questions[:num_questions]
-                    elif len(valid_questions) > 0:
-                        # Pad with unique fallback questions to reach num_questions
-                        while len(valid_questions) < num_questions:
-                            needed = num_questions - len(valid_questions)
-                            for fb_q in fallback_questions:
-                                if fb_q["question"] not in [vq["question"] for vq in valid_questions]:
-                                    valid_questions.append(fb_q)
-                                    needed -= 1
-                                    if needed == 0:
-                                        break
-                            # If we still need more (unlikely), break to prevent infinite loop and just return what we have or allow duplicates
-                            if needed > 0:
-                                break
-                        
-                        # If still not enough, only then multiply (fallback of fallback)
-                        if len(valid_questions) < num_questions:
-                            valid_questions = (valid_questions * (num_questions // len(valid_questions) + 1))[:num_questions]
-                            
-                        return valid_questions
-            except Exception as e:
-                prompt += "\n\nCRITICAL: RETURN ONLY RAW JSON ARRAY. NO MARKDOWN OR EXTRA TEXT."
-        
-        return fallback_questions
+                expected_points = json.loads(answer_obj.question.expected_points_json)
+            except Exception:
+                expected_points = []
+            return {
+                "evaluation_status": "EVALUATED",
+                "overall_score": 0,
+                "classification": "Not Answered",
+                "relevance": 0,
+                "technical_correctness": 0,
+                "completeness": 0,
+                "structure": 0,
+                "clarity": 0,
+                "communication": 0,
+                "feedback": "No answer was provided for this question.",
+                "model_answer": answer_obj.question.ideal_answer or "A concise, structured response.",
+                "missing_points": expected_points,
+                "correct_points": [],
+                "incorrect_points": [],
+                "incorrect_statements": [],
+                "suggestions": ["Deliver a complete answer using the ideal answer outline."]
+            }
 
-    def evaluate_answer(self, answer_obj: InterviewAnswer, language: str):
-        if not answer_obj.transcript:
-            return self._fallback_evaluation(answer_obj, "No transcript available to evaluate.")
+        if not self.api_key or not self.client:
+            raise GeminiEvaluationError(code="no_key", message="GEMINI_API_KEY is not set")
 
         question_text = answer_obj.question.question_text
         interview_type = answer_obj.question.session.interview_type
         technology = answer_obj.question.session.technology
         difficulty = answer_obj.question.session.difficulty
-        expected_points = answer_obj.question.expected_points_json
         ideal_answer = answer_obj.question.ideal_answer
+        expected_points = answer_obj.question.expected_points_json
+
+        # Check for brief "I don't know" answers
+        lower_trans = transcript.lower().strip()
+        is_dont_know = any(phrase in lower_trans for phrase in [
+            "i don't know", "i do not know", "no idea", "not sure", "pass", "skip"
+        ]) and len(transcript.split()) < 12
 
         visual_context = ""
         if hasattr(answer_obj, 'visual_presence') and answer_obj.visual_presence:
             vp = answer_obj.visual_presence
             visual_context = f"""
-        [VISUAL PRESENCE DATA]
-        Eye Contact: {vp.eye_contact_pct}%
-        Posture Score: {vp.posture_score}/100
-        Expression Variety: {vp.expression_variety_score}/100
-        Face Detected: {vp.face_detected_pct}%
-        Evaluate their non-verbal communication based on this data. Include feedback in the suggestions.
-        """
+[WEBCAM VISUAL METRICS]
+- Eye Contact: {vp.eye_contact_pct}%
+- Posture: {vp.posture_score}/100
+- Expressions: {vp.expression_variety_score}/100
+- Face Tracked: {vp.face_detected_pct}%
+"""
 
-        prompt = f"""
-        You are a highly strict, expert evaluator for a {difficulty} level {interview_type} interview.
-        Topic: {technology}
-        Question: "{question_text}"
-        Expected Points: {expected_points}
-        Ideal Answer: "{ideal_answer}"
-        
-        {visual_context}
+        audio_path = None
+        has_audio = False
+        try:
+            if answer_obj.audio_file and hasattr(answer_obj.audio_file, 'path') and os.path.exists(answer_obj.audio_file.path):
+                audio_path = answer_obj.audio_file.path
+                has_audio = True
+        except Exception:
+            has_audio = False
 
-        Candidate's Answer ({language}): "{answer_obj.transcript}"
+        prompt = f"""You are an expert executive interviewer evaluating a candidate's answer for a {difficulty} level {interview_type} interview.
+DOMAIN/TECHNOLOGY: "{technology}"
+QUESTION: "{question_text}"
+EXPECTED KEY POINTS: {expected_points}
+IDEAL MODEL ANSWER: "{ideal_answer}"
 
-        Evaluate this answer EXTREMELY STRICTLY (Executive Level) using the following rubric. Be BRUTALLY HONEST and heavily penalize mistakes, filler words, or incomplete answers. YOU MUST QUOTE the transcript in your feedback to justify the scores.
-        - Relevance (0-100): Does the answer directly address the question? (0-50 = off-topic, 51-80 = partial, 81-100 = full)
-        - Technical Correctness (0-100): Are the technical claims factually correct? Penalize heavily for ANY hallucinated or slightly incorrect facts.
-        - Completeness (0-100): Did they hit the expected points in full detail? 
-        - Clarity (0-100): Is the answer highly articulate and easy to follow?
-        - Structure (0-100): Does it have a logical, executive-level flow (e.g. STAR method for behavioral)?
-        - Professionalism (0-100): Is the tone authoritative, confident, and appropriate?
+{visual_context}
 
-        If {interview_type} == "Technical" or "Coding":
-        Overall Score = (Technical Correctness * 0.4) + (Completeness * 0.25) + (Relevance * 0.15) + (Clarity * 0.1) + (Structure * 0.1)
-        If {interview_type} == "HR" or "Behavioral":
-        Overall Score = (Relevance * 0.2) + (Completeness * 0.2) + (Structure * 0.2) + (Clarity * 0.2) + (Professionalism * 0.2)
+CANDIDATE'S VERBATIM ANSWER:
+"{transcript}"
 
-        Return STRICTLY a JSON object with this exact structure:
-        {{
-            "overall_score": integer (0-100),
-            "classification": "string (Correct, Partially Correct, Incorrect, or Not Answered)",
-            "technical_correctness": integer,
-            "concept_coverage": integer (represents completeness),
-            "completeness": integer,
-            "relevance": integer,
-            "clarity": integer,
-            "structure": integer,
-            "professionalism": integer,
-            "feedback": "string (Must include quotes from their transcript to justify your score)",
-            "model_answer": "string (A concise, clear, correct answer to the interview question, roughly 3-6 sentences, written as if spoken by a strong candidate)",
-            "missing_points": ["string"],
-            "correct_points": ["string"],
-            "incorrect_points": ["string"],
-            "suggestions": ["string"]
-        }}
-        """
+{"NOTE: Candidate stated they do not know or gave a one-line admission. Assign appropriately low scores (0-20), acknowledge their honesty politely in feedback, and explain what a complete answer includes." if is_dont_know else ""}
 
-        import logging
-        import os
-        from django.conf import settings
-        logger = logging.getLogger(__name__)
-        
-        if not logger.handlers:
-            log_path = os.path.join(settings.BASE_DIR, 'logs', 'ai_evaluation.log')
-            fh = logging.FileHandler(log_path)
-            fh.setLevel(logging.ERROR)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            fh.setFormatter(formatter)
-            logger.addHandler(fh)
+CRITICAL EVALUATION RULES:
+1. Every score and comment MUST come strictly from what the candidate actually said in their answer.
+2. Never praise content or technical points that are NOT in the answer.
+3. For EACH score category (relevance, technical_correctness, completeness, structure, communication):
+   - Provide 1-3 exact quotes copied verbatim from the candidate's answer as evidence.
+   - Provide a one-line reason justifying the score based on the quotes.
+4. incorrect_statements: List statements made by the candidate that are factually wrong, with exact quotes and explanation.
+5. missing_points: List essential points from the question that the candidate failed to mention.
+6. correct_points: List claims the candidate got right.
+7. classification: Exactly one of 'Correct', 'Partially Correct', 'Incorrect', or 'Not Answered'.
+8. model_answer: Concise, 3-6 sentence ideal answer outline.
+"""
 
-        logger.info("Interview AI evaluation started")
-        
-        data = None
-        error_reasons = []
-
-        # Provider 1: Gemini
-        if self.client:
-            logger.info("Attempting evaluation with Google Gemini")
-            for attempt in range(2):
-                try:
-                    from google.genai import types  # type: ignore
-                    response = self.client.models.generate_content(
-                        model=self.model_name,
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            response_mime_type="application/json",
-                        )
-                    )
-                    text = response.text.strip()
-                    data = json.loads(text)
-                    
-                    # Plausibility sanity check
-                    scores = [data.get(k, 0) for k in ["technical_correctness", "relevance", "clarity", "completeness"]]
-                    if sum(scores) == 0 or len(set(scores)) == 1:
-                        raise ValueError("Implausible identical or all-zero scores generated by Gemini.")
-                    
-                    data["evaluation_status"] = "EVALUATED"
-                    data["feedback"] += f"\n\n(Evaluated with {self.model_name})"
-                    return data
-                except Exception as e:
-                    error_msg = str(e).lower()
-                    logger.error(f"Gemini attempt {attempt + 1} failed: {str(e)}")
-                    if "quota" in error_msg or "429" in error_msg or "403" in error_msg:
-                        error_reasons.append("Gemini Quota/Auth Error")
-                        break # Skip retries and move to next provider
-                    if "not found" in error_msg or "404" in error_msg:
-                        error_reasons.append("Gemini Model Not Found Error")
-                        break
-                    error_reasons.append("Gemini Parse Error")
-                    prompt += "\n\nCRITICAL: YOUR PREVIOUS JSON WAS INVALID OR SCORES WERE IMPLAUSIBLE. ENSURE STRICT JSON COMPLIANCE."
-
-        # Provider 2: OpenAI Fallback
-        openai_key = getattr(settings, "OPENAI_API_KEY", "") or os.getenv("OPENAI_API_KEY", "")
-        if openai_key and not data:
-            logger.info("Attempting evaluation with OpenAI API (Fallback)")
+        contents = [prompt]
+        if has_audio:
             try:
-                from openai import OpenAI  # type: ignore
-                client = OpenAI(api_key=openai_key)
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "You are a strict technical interviewer and evaluator. Always output JSON."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    response_format={ "type": "json_object" }
+                import mimetypes
+                mime_type, _ = mimetypes.guess_type(audio_path)
+                if not mime_type or not mime_type.startswith("audio/"):
+                    mime_type = "audio/webm"
+                if os.path.getsize(audio_path) < 20 * 1024 * 1024:
+                    with open(audio_path, "rb") as f:
+                        contents.append(types.Part.from_bytes(data=f.read(), mime_type=mime_type))
+            except Exception as ae:
+                logger.warning(f"Could not attach interview audio: {ae}")
+
+        thinking = types.ThinkingConfig(thinking_budget=0) if hasattr(types, "ThinkingConfig") else None
+        config_kwargs = {
+            "response_mime_type": "application/json",
+            "response_schema": GroundedInterviewAnswerSchema,
+            "temperature": 0.0,
+        }
+        if thinking:
+            config_kwargs["thinking_config"] = thinking
+        config = types.GenerateContentConfig(**config_kwargs)
+
+        last_error = None
+        for attempt in range(1, 3):
+            try:
+                response = call_gemini_with_retry(
+                    self.client,
+                    self.model_name,
+                    contents,
+                    config=config,
+                    max_retries=2
                 )
-                text = response.choices[0].message.content.strip()
+                text = (response.text or "").strip()
                 data = json.loads(text)
-                
-                scores = [data.get(k, 0) for k in ["technical_correctness", "relevance", "clarity", "completeness"]]
-                if sum(scores) == 0 or len(set(scores)) == 1:
-                    raise ValueError("Implausible identical or all-zero scores generated by OpenAI.")
-
-                data["evaluation_status"] = "EVALUATED"
-                data["feedback"] += "\n\n(Evaluated with OpenAI Fallback)"
-                return data
+                return self._finalize_interview_evaluation(data, transcript, interview_type)
             except Exception as e:
-                logger.error(f"OpenAI fallback failed: {str(e)}")
-                error_reasons.append(f"OpenAI Error: {str(e)}")
-        
-        # Provider 3: Offline Keyword Fallback
-        return self._fallback_evaluation(answer_obj, "We're using our offline evaluation engine right now — for best accuracy, try again in a moment.")
+                last_error = e
+                logger.warning(f"Gemini interview evaluation attempt {attempt} failed: {e}")
+                if attempt == 1:
+                    time.sleep(0.5)
 
-    def _fallback_evaluation(self, answer_obj=None, error_message="We're using our offline evaluation engine right now — for best accuracy, try again in a moment."):
-        if answer_obj and answer_obj.transcript:
-            transcript = answer_obj.transcript.lower()
-            try:
-                expected_points = json.loads(answer_obj.question.expected_points_json)
-            except:
-                expected_points = []
-                
-            if not expected_points:
-                expected_points = ["concept", "definition", "example", "practice"]
+        mapped_e = map_gemini_exception(last_error, model_name=self.model_name)
+        if isinstance(last_error, (json.JSONDecodeError, ValueError)):
+            mapped_e = GeminiEvaluationError(
+                code="invalid_response",
+                message="Gemini returned an unusable response",
+                original_exception=last_error
+            )
+        raise mapped_e
 
-            matches = 0
-            correct_points = []
-            missing_points = []
-            
-            for pt in expected_points:
-                keywords = [w for w in pt.lower().split() if len(w) > 3]
-                if keywords and any(kw in transcript for kw in keywords):
-                    matches += 1
-                    correct_points.append(pt)
-                else:
-                    missing_points.append(pt)
-                    
-            concept_coverage = int((matches / max(len(expected_points), 1)) * 100)
-            
-            # Prevent 0 scores for long answers if they missed exact keywords
-            word_count = len(transcript.split())
-            if concept_coverage == 0 and word_count > 10:
-                overall_score = min(50, word_count * 2)
-            else:
-                overall_score = concept_coverage
-            
-            classification = "Partially Correct" if overall_score > 0 else "Incorrect"
-            if matches == len(expected_points) and matches > 0:
-                classification = "Correct"
-                
-            suggestions = ["Try to elaborate more on the missing points to improve your offline score."]
+    def _finalize_interview_evaluation(self, data: dict, transcript: str, interview_type: str) -> dict:
+        """
+        Validates quotes against transcript and computes overall interview score IN CODE.
+        """
+        relevance = _to_score(data.get("relevance_score", 60))
+        technical = _to_score(data.get("technical_correctness_score", 60))
+        completeness = _to_score(data.get("completeness_score", 60))
+        structure = _to_score(data.get("structure_score", 60))
+        communication = _to_score(data.get("communication_score", 60))
 
-            if hasattr(answer_obj, 'visual_presence') and answer_obj.visual_presence:
-                vp = answer_obj.visual_presence
-                if vp.eye_contact_pct < 60:
-                    suggestions.append(f"Your eye contact was low ({vp.eye_contact_pct}%). Try looking at the camera more.")
-                else:
-                    suggestions.append(f"Good eye contact ({vp.eye_contact_pct}%). Keep it up!")
+        def validate_evidence(ev_dict):
+            if not isinstance(ev_dict, dict):
+                return {"quotes": [], "reason": ""}
+            quotes = ev_dict.get("quotes", [])
+            valid_quotes = [q for q in quotes if q and is_verbatim_substring(q, transcript)]
+            return {"quotes": valid_quotes, "reason": ev_dict.get("reason", "") if valid_quotes else ""}
 
-            is_preliminary = False
-            if overall_score == 50 and concept_coverage == 50:
-                is_preliminary = True
+        # Validate incorrect_statements quotes
+        raw_incorrect = data.get("incorrect_statements", [])
+        validated_incorrect = []
+        for item in raw_incorrect:
+            if isinstance(item, dict):
+                quote = str(item.get("quote", "")).strip()
+                why_wrong = str(item.get("why_wrong", "")).strip()
+                if quote and is_verbatim_substring(quote, transcript):
+                    validated_incorrect.append({"quote": quote, "why_wrong": why_wrong})
 
-            feedback_text = f"Offline Fallback Evaluation active: {error_message} We used basic keyword matching to estimate your score."
-            if is_preliminary:
-                feedback_text = f"[Preliminary score — re-evaluate when back online] {feedback_text}"
-
-            return {
-                "evaluation_status": "EVALUATED",
-                "overall_score": overall_score,
-                "classification": classification,
-                "technical_correctness": overall_score,
-                "concept_coverage": concept_coverage,
-                "completeness": concept_coverage,
-                "relevance": 50 if overall_score > 0 else 0,
-                "clarity": 50,
-                "structure": 50,
-                "professionalism": 50,
-                "feedback": feedback_text,
-                "model_answer": answer_obj.question.ideal_answer if answer_obj and answer_obj.question else "Model answer unavailable.",
-                "missing_points": missing_points,
-                "correct_points": correct_points,
-                "incorrect_points": [],
-                "suggestions": suggestions
-            }
-
-        return {
-                "evaluation_status": "FAILED",
-                "overall_score": 0,
-                "classification": "Not Evaluated",
-                "technical_correctness": 0,
-                "concept_coverage": 0,
-                "completeness": 0,
-                "relevance": 0,
-                "clarity": 0,
-                "structure": 0,
-                "professionalism": 0,
-                "feedback": error_message,
-                "model_answer": "",
-                "missing_points": [],
-                "correct_points": [],
-                "incorrect_points": [],
-                "suggestions": []
+        validated_evidences = {
+            "relevance_evidence": validate_evidence(data.get("relevance_evidence")),
+            "technical_correctness_evidence": validate_evidence(data.get("technical_correctness_evidence")),
+            "completeness_evidence": validate_evidence(data.get("completeness_evidence")),
+            "structure_evidence": validate_evidence(data.get("structure_evidence")),
+            "communication_evidence": validate_evidence(data.get("communication_evidence")),
         }
 
-    def analyze_filler_words(self, transcript):
-        filler_list = ["um", "uh", "like", "actually", "basically", "you know", "i mean", "so", "right"]
-        count = 0
-        words = transcript.lower().split()
-        for w in words:
-            clean_w = re.sub(r'[^a-z]', '', w)
-            if clean_w in filler_list:
-                count += 1
-        return count
+        # Calculate Overall Score IN CODE from documented weights
+        is_technical = interview_type in ["Technical", "Coding"]
+        if is_technical:
+            # Technical: 35% Technical Correctness, 25% Completeness, 20% Relevance, 10% Communication, 10% Structure
+            raw_val = (
+                (technical * 0.35) +
+                (completeness * 0.25) +
+                (relevance * 0.20) +
+                (communication * 0.10) +
+                (structure * 0.10)
+            )
+            overall = int(raw_val + 0.5)
+        else:
+            # HR / Behavioral: 25% Relevance, 25% Completeness, 25% Structure, 25% Communication
+            raw_val = (
+                (relevance * 0.25) +
+                (completeness * 0.25) +
+                (structure * 0.25) +
+                (communication * 0.25)
+            )
+            overall = int(raw_val + 0.5)
+
+        overall = max(0, min(100, overall))
+
+        classification = data.get("classification", "Partially Correct")
+        if overall >= 80:
+            classification = "Correct"
+        elif overall < 45:
+            classification = "Incorrect"
+
+        return {
+            "evaluation_status": "EVALUATED",
+            "overall_score": overall,
+            "classification": classification,
+            "relevance": relevance,
+            "technical_correctness": technical,
+            "completeness": completeness,
+            "structure": structure,
+            "clarity": communication,
+            "communication": communication,
+            "feedback": data.get("feedback", ""),
+            "model_answer": data.get("model_answer", ""),
+            "missing_points": data.get("missing_points", []),
+            "correct_points": data.get("correct_points", []),
+            "incorrect_points": [item["quote"] + ": " + item["why_wrong"] for item in validated_incorrect] or data.get("incorrect_points", []),
+            "incorrect_statements": validated_incorrect,
+            "suggestions": data.get("suggestions", []),
+            "relevance_evidence": validated_evidences["relevance_evidence"],
+            "technical_correctness_evidence": validated_evidences["technical_correctness_evidence"],
+            "completeness_evidence": validated_evidences["completeness_evidence"],
+            "structure_evidence": validated_evidences["structure_evidence"],
+            "communication_evidence": validated_evidences["communication_evidence"],
+            "raw_model_json": {**data, **validated_evidences},
+            "engine": "gemini",
+            "model_name": self.model_name,
+            "evaluated_at": timezone.now().isoformat()
+        }
