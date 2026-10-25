@@ -21,7 +21,7 @@ class AICoachService:
 
     def __init__(self):
         self.api_key = getattr(settings, "GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
-        self.model_name = getattr(settings, "GEMINI_MODEL", "gemini-3-flash-preview")
+        self.model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash")
         self.model = None
         if self.api_key and GENAI_AVAILABLE:
             try:

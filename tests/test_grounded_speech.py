@@ -130,7 +130,7 @@ class GroundedSpeechEvaluationTests(TestCase):
 
         # 4. Provenance must be stored
         self.assertEqual(res["engine"], "gemini")
-        self.assertEqual(res["model_name"], "gemini-3-flash-preview")
+        self.assertEqual(res["model_name"], "gemini-3.5-flash")
         self.assertEqual(res["prompt_version"], "v2.0-grounded")
 
     def test_speech_recognition_errors_are_not_counted_in_grammar(self):

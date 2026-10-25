@@ -188,7 +188,7 @@ class Phase1ApiAndViewsTests(TestCase):
         with patch("google.genai.Client") as mock_client_cls:
             mock_client = MagicMock()
             mock_model = MagicMock()
-            mock_model.name = "models/gemini-3-flash-preview"
+            mock_model.name = "models/gemini-3.5-flash"
             mock_client.models.list.return_value = [mock_model]
             mock_resp = MagicMock()
             mock_resp.text = "pong"

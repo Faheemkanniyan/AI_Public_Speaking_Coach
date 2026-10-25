@@ -12,7 +12,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         api_key = getattr(settings, "GEMINI_API_KEY", "")
-        model_name = getattr(settings, "GEMINI_MODEL", "gemini-3-flash-preview")
+        model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash")
 
         # 1. Key presence check
         if not api_key:

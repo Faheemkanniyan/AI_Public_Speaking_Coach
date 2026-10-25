@@ -98,7 +98,7 @@ class ReportService:
                 f"<b>Speaker:</b> {report.session.user.username} &nbsp;&nbsp;|&nbsp;&nbsp; "
                 f"<b>Topic:</b> {report.session.topic_title}<br/>"
                 f"<b>Date:</b> {formatted_date} &nbsp;&nbsp;|&nbsp;&nbsp; "
-                f"<b>Evaluated by Gemini:</b> {report.model_name or 'gemini-3-flash-preview'} (engine: {report.engine or 'gemini'})",
+                f"<b>Evaluated by Gemini:</b> {report.model_name or 'gemini-3.5-flash'} (engine: {report.engine or 'gemini'})",
                 subtitle_style,
             )
         )

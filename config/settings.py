@@ -213,5 +213,5 @@ CELERY_TASK_ALWAYS_EAGER = os.getenv(
 CELERY_TASK_EAGER_PROPAGATES = True
 
 # Google Gemini Model Configuration
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
