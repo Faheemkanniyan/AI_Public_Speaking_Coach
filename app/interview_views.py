@@ -1,11 +1,13 @@
 import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.http import JsonResponse
 from .models import InterviewSession, InterviewQuestion, InterviewAnswer, InterviewFeedback
 from .services.interview_service import InterviewService
 from .services.speech_service import SpeechService
 from .services.assemblyai_service import AssemblyAIService
+from .utils import safe_int
 import math
 import os
 from django.conf import settings
@@ -19,7 +21,11 @@ def interview_setup_view(request):
         if not technology:
             technology = "General"
         difficulty = request.POST.get("difficulty", "Intermediate")
-        num_questions = int(request.POST.get("num_questions", 5))
+        raw_num = request.POST.get("num_questions")
+        num_questions = safe_int(raw_num, default=None, min=1, max=15)
+        if num_questions is None:
+            messages.error(request, "Please choose a valid number of questions between 1 and 15.")
+            return render(request, "interview_setup.html", status=400)
         language = request.POST.get("interview_language", "English")
 
         service = InterviewService()
@@ -52,7 +58,8 @@ def interview_question_view(request, session_id, question_id):
 
     if request.method == "POST":
         transcript = request.POST.get("transcript", "")
-        duration_seconds = int(request.POST.get("duration", 0))
+        raw_duration = request.POST.get("duration", 0)
+        duration_seconds = safe_int(raw_duration, default=0, min=0, clamp=True)
         audio_file = request.FILES.get("audio_file")
 
         # Basic STT or handle file
@@ -178,7 +185,16 @@ def interview_feedback_view(request, session_id, question_id):
     session = get_object_or_404(InterviewSession, id=session_id, user=request.user)
     question = get_object_or_404(InterviewQuestion, id=question_id, session=session)
     answer = get_object_or_404(InterviewAnswer, question=question)
-    feedback = answer.feedback
+    feedback = getattr(answer, 'feedback', None)
+    if not feedback:
+        feedback, _ = InterviewFeedback.objects.get_or_create(
+            answer=answer,
+            defaults={
+                "evaluation_status": "FAILED",
+                "classification": "Pending",
+                "feedback_text": "Evaluation feedback is being generated or was not completed. Click Retry to re-evaluate."
+            }
+        )
     
     # Determine next question
     next_question = session.questions.filter(question_number__gt=question.question_number).order_by('question_number').first()

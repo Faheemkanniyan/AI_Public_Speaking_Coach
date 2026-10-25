@@ -39,6 +39,7 @@ from .forms import (
     SettingForm,
 )
 from .services.analytics_service import AnalyticsService
+from .utils import safe_int
 
 
 def landing_view(request):
@@ -470,8 +471,15 @@ def onboarding_view(request):
     coaching_pref, _ = CoachingPreference.objects.get_or_create(user=request.user)
     
     if request.method == "POST":
-        coaching_pref.daily_practice_minutes = int(request.POST.get("daily_time", 15))
-        coaching_pref.practice_days_per_week = int(request.POST.get("practice_days", 3))
+        daily_time = safe_int(request.POST.get("daily_time"), default=None, min=5, max=240)
+        practice_days = safe_int(request.POST.get("practice_days"), default=None, min=1, max=7)
+
+        if daily_time is None or practice_days is None:
+            messages.error(request, "Please enter a valid daily practice time (5-240 minutes) and practice days per week (1-7 days).")
+            return render(request, "onboarding.html", {"pref": coaching_pref}, status=400)
+
+        coaching_pref.daily_practice_minutes = daily_time
+        coaching_pref.practice_days_per_week = practice_days
         coaching_pref.main_goal = request.POST.get("main_goal", "Improve general speaking")
         coaching_pref.current_level = request.POST.get("current_level", "Intermediate")
         coaching_pref.preferred_language = request.POST.get("language", "English")

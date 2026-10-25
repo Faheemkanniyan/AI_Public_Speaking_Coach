@@ -11,13 +11,38 @@ import os
 import json
 import re
 import random
+import logging
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 try:
     from google import genai
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
+
+
+def _to_score(value) -> int:
+    """
+    Safely converts arbitrary values (int, float, string like '85/100', None)
+    into an integer clamped between 0 and 100.
+    """
+    if value is None:
+        return 0
+    if isinstance(value, (int, float)):
+        try:
+            return max(0, min(100, int(value)))
+        except (ValueError, OverflowError):
+            return 0
+    if isinstance(value, str):
+        match = re.search(r'\d+', value)
+        if match:
+            try:
+                return max(0, min(100, int(match.group(0))))
+            except (ValueError, OverflowError):
+                return 0
+    return 0
 
 
 class GeminiSpeechAnalyzer:
@@ -30,8 +55,9 @@ class GeminiSpeechAnalyzer:
         if self.api_key and GENAI_AVAILABLE:
             try:
                 self.client = genai.Client(api_key=self.api_key)
-                self.model_name = "gemini-3.5-flash-lite"
-            except Exception:
+                self.model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Gemini client: {e}")
                 self.client = None
                 self.model_name = None
         else:
@@ -46,17 +72,24 @@ class GeminiSpeechAnalyzer:
         if not transcript or not transcript.strip():
             return self._empty_response()
 
-        # Reconstruct & correct phonetic STT transcription slips (e.g. 'song dear engineer' -> 'software engineer')
-        refined_transcript = self.refine_stt_transcript(transcript, topic_title)
+        # Reconstruct & correct phonetic STT transcription slips safely
+        try:
+            refined_transcript = self.refine_stt_transcript(transcript, topic_title)
+        except Exception as e:
+            logger.warning(f"Error refining STT transcript: {e}. Falling back to raw transcript.")
+            refined_transcript = transcript
 
         raw_data = None
         if self.client and self.api_key:
             try:
                 raw_data = self._analyze_with_gemini(refined_transcript, topic_title, duration_seconds, language, visual_metrics)
             except Exception as e:
-                # Fallback to intelligent NLP analysis if Gemini API fails
+                logger.warning(f"Gemini API analysis failed: {e}. Falling back to offline NLP.")
                 raw_data = self._fallback_nlp_analysis(refined_transcript, topic_title, duration_seconds, language, visual_metrics)
         else:
+            raw_data = self._fallback_nlp_analysis(refined_transcript, topic_title, duration_seconds, language, visual_metrics)
+
+        if not raw_data:
             raw_data = self._fallback_nlp_analysis(refined_transcript, topic_title, duration_seconds, language, visual_metrics)
 
         # Apply strict universal evaluation, grammar checking, and score validation rules
@@ -101,7 +134,7 @@ CRITICAL RULES:
             if cleaned and len(cleaned) >= len(raw_transcript) * 0.5:
                 return cleaned
         except Exception as e:
-            self.logger.warning(f"Error refining STT transcript: {e}")
+            logger.warning(f"Error refining STT transcript: {e}")
         return raw_transcript
 
     def _analyze_with_gemini(self, transcript: str, topic: str, duration_seconds: int = 60, language: str = "en-US", visual_metrics: dict = None) -> dict:
@@ -704,21 +737,38 @@ CRITICAL RULES:
                 f"Your session received an Overall Score of {score_val}/100 because only {total_words} word(s) were recorded. "
                 f"Please deliver a complete speech addressing '{topic}' to get full feedback on your grammar, vocabulary, and delivery."
             )
-        else:
-            # Respect authentic Gemini AI Evaluation!
-            # Keep Gemini's evaluated scores for overall, grammar, vocabulary, confidence, fluency, communication, and presence.
-            data["strengths"] = list(data.get("strengths", []))
-            data["weaknesses"] = list(data.get("weaknesses", []))
-            data["improvement_suggestions"] = list(data.get("improvement_suggestions", []))
+        # Validate list types for strengths, weaknesses, and suggestions
+        for list_key in ["strengths", "weaknesses", "improvement_suggestions"]:
+            raw_list = data.get(list_key, [])
+            if not isinstance(raw_list, list):
+                raw_list = [str(raw_list)] if raw_list else []
+            data[list_key] = [str(item) for item in raw_list if item is not None and str(item).strip()]
 
-        # Ensure all scores are strictly bounded 0-100 and integers
+        # Validate mistakes as a list of dicts with original, correction, reason
+        raw_mistakes = data.get("mistakes", [])
+        if not isinstance(raw_mistakes, list):
+            raw_mistakes = []
+        valid_mistakes = []
+        for m in raw_mistakes:
+            if isinstance(m, dict):
+                orig = str(m.get("original", "")).strip()
+                corr = str(m.get("correction", "")).strip()
+                reason = str(m.get("reason", m.get("explanation", ""))).strip()
+                if orig or corr:
+                    valid_mistakes.append({
+                        "original": orig,
+                        "correction": corr,
+                        "reason": reason
+                    })
+        data["mistakes"] = valid_mistakes
+
+        # Ensure all scores are strictly bounded 0-100 and integers via safe _to_score
         for k in ["overall_score", "grammar_score", "vocabulary_score", "confidence_score", "fluency_score", "communication_score", "presence_score"]:
-            val = int(data.get(k, 0))
-            data[k] = max(0, min(100, val))
+            data[k] = _to_score(data.get(k, 0))
 
         # Ensure strings and feedback fields are valid
-        if not data.get("body_language_feedback"):
-            data["body_language_feedback"] = ""
+        if not data.get("body_language_feedback") or not isinstance(data.get("body_language_feedback"), str):
+            data["body_language_feedback"] = str(data.get("body_language_feedback") or "")
 
         return data
 
@@ -726,9 +776,11 @@ CRITICAL RULES:
         """
         Ensures all required keys exist and values are valid types.
         """
+        if not isinstance(data, dict):
+            data = self._empty_response()
         default_resp = self._empty_response()
         for key in default_resp:
-            if key not in data:
+            if key not in data or data[key] is None:
                 data[key] = default_resp[key]
         return data
 

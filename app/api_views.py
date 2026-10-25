@@ -6,7 +6,10 @@ AI Coach chat queries, and Chart.js dataset fetching.
 
 import json
 import random
-from django.http import JsonResponse
+import os
+from django.conf import settings
+from django.http import JsonResponse, Http404
+from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET, require_POST
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
@@ -15,6 +18,7 @@ from .models import Topic, SpeechSession, SpeechReport
 from .services.speech_service import SpeechService
 from .services.ai_coach_service import AICoachService
 from .services.analytics_service import AnalyticsService
+from .utils import safe_int
 
 
 @require_GET
@@ -95,7 +99,16 @@ def api_speech_analyze(request):
         transcript = request.POST.get("transcript", "").strip()
         topic_id = request.POST.get("topic_id", None)
         topic_title = request.POST.get("topic_title", "General Practice")
-        duration_seconds = int(request.POST.get("duration_seconds", 60))
+        raw_duration = request.POST.get("duration_seconds")
+        if raw_duration is not None and str(raw_duration).strip():
+            duration_seconds = safe_int(raw_duration, default=None, min=1, max=3600, clamp=True)
+            if duration_seconds is None:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Invalid duration_seconds. Must be a valid integer between 1 and 3600."
+                }, status=400)
+        else:
+            duration_seconds = 60
         language = request.POST.get("language", "en-US")
         audio_file = request.FILES.get("audio_file", None)
 
@@ -178,7 +191,10 @@ def api_generate_tts(request, session_id):
     POST endpoint to generate TTS feedback for a session.
     """
     try:
-        from django.shortcuts import get_object_or_404
+        openai_key = getattr(settings, "OPENAI_API_KEY", "") or os.getenv("OPENAI_API_KEY", "")
+        if not openai_key:
+            return JsonResponse({"status": "error", "message": "TTS is not configured"}, status=503)
+
         from .services.tts_service import TTSService
         
         session = get_object_or_404(SpeechSession, id=session_id, user=request.user)
@@ -210,5 +226,7 @@ def api_generate_tts(request, session_id):
         else:
             return JsonResponse({"status": "error", "message": "Failed to generate TTS audio."}, status=500)
             
+    except Http404:
+        return JsonResponse({"status": "error", "message": "Session not found."}, status=404)
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)

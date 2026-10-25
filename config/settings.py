@@ -70,16 +70,26 @@ ASGI_APPLICATION = "config.asgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
-        'NAME': os.getenv('DB_NAME', 'ai_speaking_coach'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', '4374'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432')
+DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.postgresql')
+
+if 'sqlite3' in DB_ENGINE:
+    DATABASES = {
+        "default": {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.getenv('DB_NAME', str(BASE_DIR / 'db.sqlite3')),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            'ENGINE': DB_ENGINE,
+            'NAME': os.getenv('DB_NAME', 'ai_speaking_coach'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432')
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -147,6 +157,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # AssemblyAI API Key (for high-accuracy speech-to-text & filler word detection)
 ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY", "")
+
+# OpenAI API Key (for optional Text-to-Speech audio feedback)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 CELERY_BROKER_URL = os.getenv(
     "CELERY_BROKER_URL",
