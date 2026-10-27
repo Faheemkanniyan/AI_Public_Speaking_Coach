@@ -108,11 +108,12 @@ class AssemblyAIService:
             return {"status": "error", "text": "", "error": str(e)}
 
     @classmethod
-    def analyze_filler_words(cls, transcript: str, mistakes: list = None) -> dict:
+    def analyze_filler_words(cls, transcript: str, mistakes: list = None, executive_speech: str = "") -> dict:
         """
         Analyzes any speech transcript text for filler words and disfluencies.
         Returns counts, percentage, word breakdown list, and HTML-highlighted transcript
         with filler words in badges and grammar/phrase mistakes underlined in redline.
+        If an AI executive model speech is provided, uses it as the polished revision.
         """
         text = (transcript or "").strip()
         words = re.findall(r'\b\w+\b', text.lower())
@@ -184,7 +185,15 @@ class AssemblyAIService:
                 )
 
         # 4. Build AI-Corrected Executive Transcript HTML (for the corrected sentence box)
-        corrected_html = escape(text)
+        if executive_speech and executive_speech.strip():
+            escaped_exec = escape(executive_speech.strip())
+            paragraphs = [p.strip() for p in escaped_exec.split("\n") if p.strip()]
+            if len(paragraphs) > 1:
+                corrected_html = "".join([f'<p class="mb-2">{p}</p>' for p in paragraphs])
+            else:
+                corrected_html = f'<div class="mb-0">{escaped_exec}</div>'
+        else:
+            corrected_html = escape(text)
 
         # Apply STT articulation fixes first
         for pat, replacement, reason_txt in stt_fixes:

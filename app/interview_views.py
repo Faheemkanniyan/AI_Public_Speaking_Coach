@@ -197,7 +197,7 @@ def interview_question_view(request, session_id, question_id):
                 completeness_score=eval_data.get("completeness", 0),
                 structure_score=eval_data.get("structure", 0),
                 clarity_score=eval_data.get("clarity", 0),
-                grammar_score=0,
+                grammar_score=eval_data.get("grammar_score", 0),
                 feedback_text=eval_data.get("feedback", "No feedback provided."),
                 model_answer=eval_data.get("model_answer", ""),
                 missing_points_json=json.dumps(eval_data.get("missing_points", [])),
@@ -281,7 +281,7 @@ def interview_retry_feedback_view(request, session_id, question_id):
             feedback.completeness_score = eval_data.get("completeness", 0)
             feedback.structure_score = eval_data.get("structure", 0)
             feedback.clarity_score = eval_data.get("clarity", 0)
-            feedback.grammar_score = 0
+            feedback.grammar_score = eval_data.get("grammar_score", 0)
             feedback.feedback_text = eval_data.get("feedback", "No feedback provided.")
             feedback.model_answer = eval_data.get("model_answer", "")
             feedback.missing_points_json = json.dumps(eval_data.get("missing_points", []))

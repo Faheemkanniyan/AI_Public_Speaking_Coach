@@ -175,9 +175,35 @@ class SpeechReport(models.Model):
         return self.get_mistakes()
 
     @property
+    def executive_model_speech(self):
+        if self.raw_model_json and isinstance(self.raw_model_json, dict):
+            return str(self.raw_model_json.get("executive_model_speech", "")).strip()
+        return ""
+
+    @property
+    def why_improve_analysis(self):
+        if self.raw_model_json and isinstance(self.raw_model_json, dict):
+            items = self.raw_model_json.get("why_improve_analysis", [])
+            if isinstance(items, list):
+                return items
+            elif isinstance(items, str) and items.strip():
+                return [items.strip()]
+        return []
+
+    @property
+    def timing_pacing_feedback(self):
+        if self.raw_model_json and isinstance(self.raw_model_json, dict):
+            return str(self.raw_model_json.get("timing_pacing_feedback", "")).strip()
+        return ""
+
+    @property
     def filler_analysis(self):
         from app.services.assemblyai_service import AssemblyAIService
-        return AssemblyAIService.analyze_filler_words(self.session.transcript, mistakes=self.get_mistakes())
+        return AssemblyAIService.analyze_filler_words(
+            self.session.transcript,
+            mistakes=self.get_mistakes(),
+            executive_speech=self.executive_model_speech
+        )
 
     @property
     def time_consumed_seconds(self):

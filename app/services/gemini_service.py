@@ -293,6 +293,19 @@ class GroundedSpeechEvaluationSchema(BaseModel):
     presence_score: int = Field(default=0, ge=0, le=100)
     body_language_feedback: str = Field(default="")
 
+    timing_pacing_feedback: str = Field(
+        default="",
+        description="Detailed assessment of speaking pace (WPM), pauses, and time utilization."
+    )
+    why_improve_analysis: List[str] = Field(
+        default_factory=list,
+        description="3-4 bullet points diagnosing why the speech needs improvement."
+    )
+    executive_model_speech: str = Field(
+        default="",
+        description="A polished, executive-level rewritten model response showing how the user's thoughts should be articulated fluently and professionally."
+    )
+
     mistakes: List[MistakeItem] = Field(default_factory=list)
     strengths: List[str] = Field(default_factory=list, description="Each strength MUST include a supporting verbatim quote from the transcript")
     weaknesses: List[str] = Field(default_factory=list, description="Each weakness MUST include a supporting verbatim quote from the transcript")
@@ -431,6 +444,12 @@ Return ONLY the cleaned transcript text."""
             "content_relevance_score": 0,
             "presence_score": 0,
             "body_language_feedback": "Not enough speech was delivered to measure speaking delivery.",
+            "timing_pacing_feedback": "Speech was too brief to evaluate timing and pace.",
+            "why_improve_analysis": [
+                f"Speech length was only {word_count} words. At least 25 words are required for evaluation.",
+                "Speak for at least 30 to 60 seconds with supporting examples to allow full speech analysis."
+            ],
+            "executive_model_speech": "",
             "topic_relevance": 0,
             "topic_relevance_explanation": "Speech too brief to evaluate topic relevance.",
             "strengths": [],
@@ -506,15 +525,15 @@ Evaluate their physical presence, camera engagement, and poise. Set presence_sco
 - No webcam stream active. Set presence_score to 0 and note in body_language_feedback that camera was disabled.
 """
 
-        prompt = f"""You are a senior executive public speaking coach and speech judge.
+        prompt = f"""You are a senior executive public speaking coach and strict speech examiner.
 Evaluate the speaker's performance based ONLY on what they actually said.
 
-ASSIGNED TOPIC: "{topic}" {"(Open / Free practice topic: do not penalize for topic selection)" if is_free_topic else "(Specific assigned topic: evaluate how closely the speech addresses this topic)"}
+ASSIGNED TOPIC: "{topic}" {"(Open / Free practice topic: speaker chose this topic, but if they introduce a specific question or prompt, strictly evaluate whether they answered it completely)" if is_free_topic else "(Specific assigned topic: evaluate how closely and completely the speech addresses this topic)"}
 
 OBJECTIVE MEASURED FACTS (computed in Python, you MUST NOT contradict these):
 - Duration: {metrics['duration_seconds']} seconds
 - Word Count: {metrics['word_count']} words
-- Speaking Pace: {metrics['wpm']} WPM
+- Speaking Pace: {metrics['wpm']} WPM (Executive Benchmark: 120 - 150 WPM)
 - Filler Count: {metrics['filler_count']} fillers detected {json.dumps(metrics.get('filler_breakdown', {}))}
 - Sentence Count: {metrics['sentence_count']} sentences (avg length {metrics['avg_sentence_length']} words)
 - Unique Word Ratio: {metrics['unique_word_ratio']}
@@ -525,27 +544,52 @@ OBJECTIVE MEASURED FACTS (computed in Python, you MUST NOT contradict these):
 RAW TRANSCRIPT (VERBATIM):
 "{transcript}"
 
-CRITICAL GROUNDING RULES:
-1. Every score and comment MUST come from the user's real speech.
-2. Never mention topics, people, facts, or concepts not in the speech.
-3. Do not give generic, ungrounded praise.
-4. Scoring Rubric (do NOT round scores to multiples of 5 unless strictly justified):
-   - 90-100: Excellent (compelling, accurate, articulate)
-   - 75-89: Good (solid, clear, minor blemishes)
-   - 60-74: Adequate (understandable, noticeable gaps or hesitations)
-   - 40-59: Weak (disorganized, significant mistakes or hesitations)
-   - 0-39: Poor (incoherent or severely flawed)
-5. For EACH score category (grammar, vocabulary, fluency, clarity, confidence_delivery, content_relevance), you MUST provide:
+CRITICAL GROUNDING & STRICT EVALUATION RULES:
+1. Every score and comment MUST come directly from what the user said.
+2. Never give generic, ungrounded, or inflated praise. Be a strict, realistic executive evaluator (calibrated to Toastmasters International / IELTS / Fortune 500 executive speech panels).
+3. STRICT SCORING RUBRICS (do NOT inflate scores or round to multiples of 5):
+   - 90-100: Executive / Master (compelling, flawless grammar, sophisticated vocabulary, optimal pace 120-150 WPM, coherent structure)
+   - 70-89: Proficient / Competent (clear sentences, minor grammatical slips, good flow, adequate vocabulary)
+   - 45-69: Developing (noticeable grammatical errors, hesitations, basic vocabulary, simple syntax)
+   - 20-44: Weak / Significant Deficiencies (frequent breakdown of grammar, missing verbs, fragmented clauses, very slow/halting pace <100 WPM, or failure to address key prompt elements)
+   - 0-19: Severely Deficient / Incoherent (cannot construct intelligible English sentences)
+
+4. TIMING & PACING EVALUATION (CRITICAL):
+   - Standard executive conversational/presentation pace is 120 - 150 WPM.
+   - If Speaking Pace is < 100 WPM (e.g. 92 WPM), heavily penalize Fluency and Delivery (scores in the 20-45 range) for halting delivery, excessive hesitations, and lack of forward momentum.
+   - If Speaking Pace is > 165 WPM, penalize for rushing.
+   - Provide a detailed critique of pace, rhythm, and time utilization in `timing_pacing_feedback`.
+
+5. GRAMMAR & SYNTAX ACCURACY (CRITICAL):
+   - Broken verb forms, missing subjects/verbs, or fragmented phrasing (e.g. "my I taking", "become a positive", "decision is very good in our I take") MUST receive a strict score in the 20-45 range.
+   - Do NOT award a 50+ score to speeches with fractured sentence grammar.
+
+6. CONTENT RELEVANCE & PROMPT COMPLETENESS:
+   - If the user recites or introduces a question (e.g. "achievement and what it taught you about leadership") but only addresses one small piece (e.g. MCA) and completely ignores another core piece (e.g. leadership), penalize Content Relevance strictly (score 20-45). Prompt echoes are NOT answers.
+
+7. "WHY IMPROVE" DIAGNOSIS (`why_improve_analysis`):
+   - Provide 3-4 clear, bullet points explicitly diagnosing WHY this speech needs improvement:
+     * Syntax & grammar breakdown with exact quotes.
+     * Missing content & prompt requirements (e.g. unanswered leadership question).
+     * Timing & pacing drag (critiquing measured WPM vs ideal 120-150 WPM).
+     * Word choice & vocabulary precision.
+
+8. AI-CORRECTED EXECUTIVE SPEECH (`executive_model_speech`):
+   - Provide a complete, polished, executive model answer (3-5 sentences) showing how an executive candidate should have articulated this exact thought.
+   - Remove prompt recitations, stumbles, and broken grammar.
+   - Elevate the message using professional structure (e.g. Situation, Action, Leadership takeaway).
+
+9. For EACH score category (grammar, vocabulary, fluency, clarity, confidence_delivery, content_relevance), you MUST provide:
    - `quotes`: 1-3 EXACT quotes copied verbatim from the transcript as checkable evidence
    - `reason`: a one-line justification explaining the score based on the quotes
-6. Mistakes:
+10. Mistakes:
    - `original`: MUST be an exact substring copied verbatim from the transcript
    - `correction`: the proper phrasing
    - `type`: 'grammar', 'word_choice', or 'likely_speech_recognition_error'
    - `reason`: why it is incorrect or why it is an STT artifact
-7. Strengths and Weaknesses:
+11. Strengths and Weaknesses:
    - EVERY strength and EVERY weakness item MUST contain a supporting verbatim quote from the transcript.
-8. Suggestions:
+12. Suggestions:
    - MUST tie directly to specific weaknesses identified in the speech.
 """
 
@@ -585,6 +629,9 @@ Return response STRICTLY as a valid JSON object matching this schema:
   "confidence_delivery_evidence": {"quotes": ["verbatim transcript quote"], "reason": "justification"},
   "content_relevance_score": 0-100,
   "content_relevance_evidence": {"quotes": ["verbatim transcript quote"], "reason": "justification"},
+  "timing_pacing_feedback": "Detailed critique of speaking pace, duration, and rhythm",
+  "why_improve_analysis": ["Point 1: Syntax breakdown", "Point 2: Unanswered prompt aspects", "Point 3: Timing/pacing drag", "Point 4: Vocabulary upgrade"],
+  "executive_model_speech": "Complete 3-5 sentence eloquent executive model response answering the topic professionally",
   "mistakes": [{"original": "verbatim quote", "correction": "correction", "type": "grammar"|"word_choice"|"likely_speech_recognition_error", "reason": "reason"}],
   "strengths": ["Item with verbatim quote"],
   "weaknesses": ["Item with verbatim quote"],
@@ -792,8 +839,8 @@ Return response STRICTLY as a valid JSON object matching this schema:
         presence_score = _to_score(raw_result.get("presence_score", 0), default=0)
 
         # Adjust for speech recognition errors: never penalize grammar for STT mishearings
-        if speech_rec_mistakes and grammar_score < 75:
-            # Compensate grammar score slightly if penalties were caused by STT mishearings
+        # Only compensate grammar score if the ONLY flagged mistakes were STT errors and no real grammar errors exist
+        if speech_rec_mistakes and not validated_mistakes and grammar_score < 75:
             grammar_score = min(100, grammar_score + min(15, len(speech_rec_mistakes) * 5))
 
         # Calculate OVERALL SCORE IN CODE from documented weights:
@@ -818,6 +865,13 @@ Return response STRICTLY as a valid JSON object matching this schema:
 
         all_mistakes = validated_mistakes + speech_rec_mistakes
 
+        # Extract timing and diagnostic coaching feedback
+        timing_pacing_feedback = str(raw_result.get("timing_pacing_feedback", "")).strip()
+        why_improve_analysis = raw_result.get("why_improve_analysis", [])
+        if not isinstance(why_improve_analysis, list):
+            why_improve_analysis = [str(why_improve_analysis)] if why_improve_analysis else []
+        executive_model_speech = str(raw_result.get("executive_model_speech", "")).strip()
+
         structured_scores = {
             "grammar": {"score": grammar_score, "evidence": score_evidence["grammar"]["evidence"]},
             "vocabulary": {"score": vocabulary_score, "evidence": score_evidence["vocabulary"]["evidence"]},
@@ -830,7 +884,10 @@ Return response STRICTLY as a valid JSON object matching this schema:
         full_model_json = {
             **raw_result,
             "scores": structured_scores,
-            "score_evidence": score_evidence
+            "score_evidence": score_evidence,
+            "timing_pacing_feedback": timing_pacing_feedback,
+            "why_improve_analysis": why_improve_analysis,
+            "executive_model_speech": executive_model_speech,
         }
 
         return {
@@ -847,6 +904,9 @@ Return response STRICTLY as a valid JSON object matching this schema:
             "content_relevance_score": content_relevance_score,
             "presence_score": presence_score,
             "body_language_feedback": raw_result.get("body_language_feedback", ""),
+            "timing_pacing_feedback": timing_pacing_feedback,
+            "why_improve_analysis": why_improve_analysis,
+            "executive_model_speech": executive_model_speech,
             "topic_relevance": _to_score(raw_result.get("topic_relevance_score", raw_result.get("topic_relevance", 80)), default=80),
             "topic_relevance_explanation": raw_result.get("topic_relevance_explanation", raw_result.get("topic_relevance_reason", "")),
             "strengths": validated_strengths or raw_result.get("strengths", []),

@@ -29,6 +29,19 @@ document.addEventListener("DOMContentLoaded", function () {
   if (savedTheme) {
     document.body.setAttribute("data-bs-theme", savedTheme);
   }
+
+  // 3. Global Back Button
+  const backBtn = document.getElementById("globalBackBtn");
+  if (backBtn) {
+    backBtn.addEventListener("click", function () {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        const fallback = backBtn.getAttribute("data-fallback") || "/dashboard/";
+        window.location.href = fallback;
+      }
+    });
+  }
 });
 
 /**

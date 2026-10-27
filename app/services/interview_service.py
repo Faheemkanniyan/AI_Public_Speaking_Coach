@@ -62,20 +62,23 @@ class IncorrectStatementItem(BaseModel):
 
 
 class GroundedInterviewAnswerSchema(BaseModel):
-    relevance_score: int = Field(default=75, ge=0, le=100)
+    relevance_score: int = Field(default=50, ge=0, le=100)
     relevance_evidence: InterviewEvidence = Field(default_factory=InterviewEvidence)
 
-    technical_correctness_score: int = Field(default=75, ge=0, le=100)
+    technical_correctness_score: int = Field(default=50, ge=0, le=100)
     technical_correctness_evidence: InterviewEvidence = Field(default_factory=InterviewEvidence)
 
-    completeness_score: int = Field(default=75, ge=0, le=100)
+    completeness_score: int = Field(default=50, ge=0, le=100)
     completeness_evidence: InterviewEvidence = Field(default_factory=InterviewEvidence)
 
-    structure_score: int = Field(default=75, ge=0, le=100)
+    structure_score: int = Field(default=50, ge=0, le=100)
     structure_evidence: InterviewEvidence = Field(default_factory=InterviewEvidence)
 
-    communication_score: int = Field(default=75, ge=0, le=100)
+    communication_score: int = Field(default=50, ge=0, le=100)
     communication_evidence: InterviewEvidence = Field(default_factory=InterviewEvidence)
+
+    grammar_score: int = Field(default=50, ge=0, le=100, description="Strict evaluation of candidate's spoken grammar and sentence syntax accuracy")
+    timing_pacing_feedback: str = Field(default="", description="Strict critique of candidate's speaking pace (WPM), pauses, and delivery duration")
 
     classification: str = Field(default="Partially Correct", description="'Correct', 'Partially Correct', 'Incorrect', or 'Not Answered'")
     feedback: str = Field(default="", description="Honest, grounded feedback citing verbatim quotes")
@@ -235,30 +238,49 @@ class InterviewService:
         except Exception:
             has_audio = False
 
-        prompt = f"""You are an expert executive interviewer evaluating a candidate's answer for a {difficulty} level {interview_type} interview.
+        prompt = f"""You are a senior executive interviewer and technical bar raiser evaluating a candidate's spoken answer for a {difficulty} level {interview_type} interview.
 DOMAIN/TECHNOLOGY: "{technology}"
 QUESTION: "{question_text}"
 EXPECTED KEY POINTS: {expected_points}
 IDEAL MODEL ANSWER: "{ideal_answer}"
 
+OBJECTIVE MEASURED SPEECH FACTS (computed in Python, you MUST NOT contradict these):
+- Recorded Duration: {answer_obj.duration_seconds} seconds
+- Word Count: {answer_obj.word_count} words
+- Speaking Pace: {answer_obj.speaking_rate} WPM (Executive benchmark: 120 - 150 WPM)
+- Vocal Fillers: {answer_obj.filler_count} fillers detected
+
 {visual_context}
 
-CANDIDATE'S VERBATIM ANSWER:
+CANDIDATE'S VERBATIM SPOKEN ANSWER:
 "{transcript}"
 
 {"NOTE: Candidate stated they do not know or gave a one-line admission. Assign appropriately low scores (0-20), acknowledge their honesty politely in feedback, and explain what a complete answer includes." if is_dont_know else ""}
 
-CRITICAL EVALUATION RULES:
-1. Every score and comment MUST come strictly from what the candidate actually said in their answer.
-2. Never praise content or technical points that are NOT in the answer.
-3. For EACH score category (relevance, technical_correctness, completeness, structure, communication):
-   - Provide 1-3 exact quotes copied verbatim from the candidate's answer as evidence.
-   - Provide a one-line reason justifying the score based on the quotes.
-4. incorrect_statements: List statements made by the candidate that are factually wrong, with exact quotes and explanation.
-5. missing_points: List essential points from the question that the candidate failed to mention.
-6. correct_points: List claims the candidate got right.
-7. classification: Exactly one of 'Correct', 'Partially Correct', 'Incorrect', or 'Not Answered'.
-8. model_answer: Concise, 3-6 sentence ideal answer outline.
+CRITICAL GROUNDING & STRICT EVALUATION RULES:
+1. Every score and comment MUST come strictly from what the candidate actually spoke in their answer.
+2. Never award unearned high scores or hallucinate technical concepts that were not in the candidate's answer.
+3. STRICT SCORING RUBRICS (Executive Hiring Standards):
+   - 85-100: Executive / Senior Level (accurate technical depth, complete key points, fluent delivery 120-150 WPM, flawless grammar, coherent structure).
+   - 70-84: Competent / Acceptable (correct core concepts, minor omissions, solid spoken communication).
+   - 45-69: Developing / Significant Gaps (misses multiple expected points, noticeable grammatical errors, basic phrasing, or hesitations).
+   - 20-44: Weak / Significant Deficiencies (broken grammar, missing most expected points, severe technical misconceptions, halting pace <100 WPM).
+   - 0-19: Unanswered or Incoherent (cannot construct meaningful response).
+4. SPOKEN COMMUNICATION & PACING EVALUATION:
+   - Evaluates clarity, articulation, speaking pace (WPM), and vocal presence.
+   - If Speaking Pace is < 100 WPM (e.g. 80-95 WPM), heavily penalize communication_score (score 20-45) for dragging, excessive hesitations, and lack of forward momentum.
+   - If Speaking Pace is > 165 WPM, penalize for rushing.
+   - Write a dedicated timing & rhythm critique in `timing_pacing_feedback`.
+5. GRAMMAR & SYNTAX (`grammar_score`):
+   - Evaluate grammatical correctness and sentence coherence (0-100). Broken grammar, missing verbs, or fragmented phrasing must receive a strict score in the 20-45 range.
+6. TECHNICAL ACCURACY & COMPLETENESS:
+   - Compare claims against EXPECTED KEY POINTS. If expected points are missing, penalize completeness_score strictly.
+   - Factually wrong statements MUST be listed in `incorrect_statements` with exact verbatim quotes and penalize technical_correctness_score.
+7. STRUCTURE (`structure_score`):
+   - For technical questions: defines concept, explains mechanics, gives practical application.
+   - For behavioral questions: adherence to STAR framework (Situation, Task, Action, Result).
+8. MODEL ANSWER (`model_answer`):
+   - Concise 3-6 sentence ideal model answer demonstrating how a top candidate would articulate this aloud.
 """
 
         prompt += """
@@ -275,6 +297,8 @@ Return response STRICTLY as a valid JSON object matching this schema:
   "structure_evidence": {"quotes": ["verbatim transcript quote"], "reason": "one-line reason"},
   "communication_score": 0-100,
   "communication_evidence": {"quotes": ["verbatim transcript quote"], "reason": "one-line reason"},
+  "grammar_score": 0-100,
+  "timing_pacing_feedback": "Detailed critique of speaking pace, duration, and rhythm",
   "classification": "Correct" | "Partially Correct" | "Incorrect" | "Not Answered",
   "feedback": "Honest grounded feedback citing verbatim quotes",
   "model_answer": "Concise 3-6 sentence ideal answer outline",
@@ -347,11 +371,13 @@ Return response STRICTLY as a valid JSON object matching this schema:
         """
         Validates quotes against transcript and computes overall interview score IN CODE.
         """
-        relevance = _to_score(data.get("relevance_score", 60))
-        technical = _to_score(data.get("technical_correctness_score", 60))
-        completeness = _to_score(data.get("completeness_score", 60))
-        structure = _to_score(data.get("structure_score", 60))
-        communication = _to_score(data.get("communication_score", 60))
+        relevance = _to_score(data.get("relevance_score", 50))
+        technical = _to_score(data.get("technical_correctness_score", 50))
+        completeness = _to_score(data.get("completeness_score", 50))
+        structure = _to_score(data.get("structure_score", 50))
+        communication = _to_score(data.get("communication_score", 50))
+        grammar_score = _to_score(data.get("grammar_score", communication))
+        timing_pacing_feedback = str(data.get("timing_pacing_feedback", "")).strip()
 
         def validate_evidence(ev_dict):
             if not isinstance(ev_dict, dict):
@@ -418,6 +444,8 @@ Return response STRICTLY as a valid JSON object matching this schema:
             "structure": structure,
             "clarity": communication,
             "communication": communication,
+            "grammar_score": grammar_score,
+            "timing_pacing_feedback": timing_pacing_feedback,
             "feedback": data.get("feedback", ""),
             "model_answer": data.get("model_answer", ""),
             "missing_points": data.get("missing_points", []),
@@ -430,7 +458,7 @@ Return response STRICTLY as a valid JSON object matching this schema:
             "completeness_evidence": validated_evidences["completeness_evidence"],
             "structure_evidence": validated_evidences["structure_evidence"],
             "communication_evidence": validated_evidences["communication_evidence"],
-            "raw_model_json": {**data, **validated_evidences},
+            "raw_model_json": {**data, **validated_evidences, "grammar_score": grammar_score, "timing_pacing_feedback": timing_pacing_feedback},
             "engine": "gemini",
             "model_name": self.model_name,
             "evaluated_at": timezone.now().isoformat()

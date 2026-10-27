@@ -6,6 +6,7 @@ History, Analytics, Profile, AI Coach, Settings, and PDF exports.
 
 import os
 import json
+import logging
 from pathlib import Path
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -18,6 +19,8 @@ from django.db.models import Q, Sum
 from django.conf import settings
 from django.utils import timezone
 import datetime
+
+logger = logging.getLogger(__name__)
 
 from .models import (
     UserProfile,
@@ -97,7 +100,7 @@ def signup_view(request):
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
+            login(request, user, backend="app.backends.EmailOrUsernameModelBackend")
             messages.success(request, f"Welcome to SpeakPro AI, {user.username}! Your speaking journey begins now.")
             return redirect("dashboard")
     else:

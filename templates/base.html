@@ -159,7 +159,9 @@
   <main class="flex-grow-1">
     {% if request.resolver_match.url_name != 'landing' %}
     <div class="container pt-3 pb-0">
-      <button onclick="window.history.length > 1 ? window.history.back() : window.location.href='{% url 'dashboard' %}'" 
+      <button type="button" 
+              id="globalBackBtn"
+              data-fallback="{% url 'dashboard' %}"
               class="back-btn-glass mb-3" 
               title="Go back to previous page">
         <i class="bi bi-arrow-left"></i> <span>Back</span>

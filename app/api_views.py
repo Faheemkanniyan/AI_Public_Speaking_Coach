@@ -7,6 +7,7 @@ AI Coach chat queries, and Chart.js dataset fetching.
 import json
 import random
 import os
+import logging
 from django.conf import settings
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
@@ -18,6 +19,8 @@ from .models import Topic, SpeechSession, SpeechReport
 from .services.speech_service import SpeechService
 from .services.analytics_service import AnalyticsService
 from .utils import safe_int, ratelimit_view, validate_audio_file, validate_and_clean_visual_metrics
+
+logger = logging.getLogger(__name__)
 
 
 @require_GET
